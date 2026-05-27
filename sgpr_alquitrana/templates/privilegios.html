@@ -1,12 +1,34 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-xl-10 col-lg-11">
-    <div class="auth-card">
-    <h3>Administrar privilegios</h3>
-    <p>Aquí puedes otorgar o revocar privilegios de administrador a los trabajadores.</p>
-    <div class="table-responsive mt-4">
-      <table class="table table-striped">
+<div class="content-area p-4 p-md-5 bg-white rounded-4 shadow-sm">
+                        <!-- Contenido principal de cada plantilla heredada. -->
+                        
+<!-- Página de auditoría: lista de registros con exportación XLSX/PDF. -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold mb-1">Administrar privilegios</h3>
+    <p class="text-muted mb-0">Aquí puedes otorgar o revocar privilegios de administrador a los trabajadores.</p>
+  </div>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+    <a href="{% url 'configuracion' %}" class="btn btn-primary-custom btn-export">Volver a configuración</a>
+  </div>
+</div>
+<form method="get" class="search-filters mb-4">
+  <div class="row gy-2 gx-2 align-items-center">
+    <div class="col-md-6">
+      <label class="form-label visually-hidden" for="search-query">Buscar</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+        <input id="search-query" name="q" type="search" class="form-control" placeholder="Buscar por nombre, cédula, cargo, departamento, acción..." value="{{ query|default:'' }}">
+      </div>
+    </div>
+    <div class="col-md-2 text-md-end">
+      <button type="submit" class="btn btn-secondary-custom w-100">Filtrar</button>
+    </div>
+  </div>
+</form>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <table class="table custom-table table-hover align-middle m-0">
         <thead>
           <tr>
             <th>Nombre</th>
@@ -50,9 +72,6 @@
           {% endfor %}
         </tbody>
       </table>
-    </div>
-    <div class="mt-4">
-      <a href="{% url 'configuracion' %}" class="btn btn-secondary-custom">Volver a configuración</a>
     </div>
     </div>
   </div>
