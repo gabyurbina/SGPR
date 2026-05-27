@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block content %}
+<!-- Dashboard principal: listado de solicitudes y controles para buscar/filtrar. -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div>
+    <h3 class="fw-bold mb-1">Panel de Solicitudes</h3>
+    <p class="text-muted mb-0">Revisa las solicitudes recientes y gestiona su estado desde aquí.</p>
+  </div>
+  {% if es_admin %}
+  <a class="btn btn-primary-custom" href="{% url 'reporte_auditoria' %}">
+    <i class="fa-solid fa-file-lines me-2"></i>Ver auditoría
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filtros de búsqueda y estado para el listado de solicitudes. -->
+<form method="get" class="search-filters mb-4">
+  <div class="row gy-2 gx-2 align-items-center">
+    <div class="col-md-6">
+      <label class="form-label visually-hidden" for="search-query">Buscar</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+        <input id="search-query" name="q" type="search" class="form-control" placeholder="Buscar por cédula, nombre, apellido, ubicación, tipo..." value="{{ query }}">
+      </div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label visually-hidden" for="filter-estado">Estado</label>
+      <select id="filter-estado" name="estado" class="form-select">
+        {% for value, label in estado_options %}
+          <option value="{{ value }}" {% if filtro_estado == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 text-md-end">
+      <button type="submit" class="btn btn-secondary-custom w-100">Filtrar</button>
+    </div>
+  </div>
+</form>
+
+{% if page_obj and page_obj.paginator.count > 0 %}
+  <div class="table-container">
+    <div class="table-responsive">
+      <table class="table custom-table table-hover align-middle m-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Trabajador</th>
+            <th>Tipo</th>
+            <th>Estado</th>
+            <th>Fechas</th>
+            <th>Días continuos</th>
+            <th>Días laborables</th>
+            <th>Adjunto</th>
+            <th>Mensaje</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in solicitudes %}
+            <tr>
+              <td>{% if es_admin %}{{ s.id }}{% else %}{{ forloop.counter0|add:page_obj.start_index }}{% endif %}</td>
+              <td>{{ s.trabajador }}</td>
+              <td>{{ s.get_tipo_display }}</td>
+              <td>
+                {% if s.estado == 'APROBADO' %}
+                  <span class="status-badge status-approved">{{ s.estado }}</span>
+                {% elif s.estado == 'RECHAZADO' %}
+                  <span class="status-badge status-rejected">{{ s.estado }}</span>
+                {% else %}
+                  <span class="status-badge status-pending">{{ s.estado }}</span>
+                {% endif %}
+              </td>
+              <td>{{ s.fecha_inicio }} - {{ s.fecha_fin }}</td>
+              <td>{{ s.dias_continuos }}</td>
+              <td>{{ s.dias_laborables }}</td>
+              <td>
+                {% if s.adjunto %}
+                  <div class="d-flex gap-2 flex-wrap">
+                    <a class="btn btn-sm btn-outline-primary btn-action" href="{{ s.adjunto.url }}" target="_blank" rel="noopener">Ver</a>
+                    <a class="btn btn-sm btn-outline-secondary btn-action" href="{{ s.adjunto.url }}" download="{{ s.adjunto.name }}">Descargar</a>
+                  </div>
+                {% else %}
+                  <span class="form-text text-muted">Sin adjunto</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="form-text text-muted">{{ s.observaciones_admin|default:'-' }}</span>
+              </td>
+              <td class="text-end">
+                {% if es_admin and s.estado != 'APROBADO' and s.estado != 'RECHAZADO' %}
+                  <div class="d-flex justify-content-end gap-2">
+                    <a class="btn btn-sm btn-outline-success btn-action" href="{% url 'evaluar_solicitud' s.id 'aprobar' %}">Aprobar</a>
+                    <a class="btn btn-sm btn-outline-danger btn-action" href="{% url 'evaluar_solicitud' s.id 'rechazar' %}">Rechazar</a>
+                  </div>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="d-flex justify-content-end">
+      <nav aria-label="Paginación solicitudes">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page={{ page_obj.previous_page_number }}">Anterior</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+          {% endif %}
+
+          {% for num in paginator.page_range %}
+            {% if num == page_obj.number %}
+              <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+              <li class="page-item"><a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page={{ num }}">{{ num }}</a></li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page={{ page_obj.next_page_number }}">Siguiente</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+  </div>
+
+{% else %}
+  <div class="table-container">
+    <p class="text-muted mb-0">No hay solicitudes registradas.</p>
+  </div>
+{% endif %}
+{% endblock %}

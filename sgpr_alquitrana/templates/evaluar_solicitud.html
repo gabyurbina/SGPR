@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block content %}
+<!-- Vista de evaluación de solicitud para admins. Permite revisar adjuntos y agregar observaciones antes de aprobar/rechazar. -->
+<div class="row justify-content-center">
+  <div class="col-lg-8 col-md-10">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h3 class="card-title mb-3">Evaluar Solicitud #{{ solicitud.id }}</h3>
+        <p><strong>Trabajador:</strong> {{ solicitud.trabajador }}</p>
+        <p><strong>Tipo:</strong> {{ solicitud.get_tipo_display }}</p>
+        <p><strong>Fechas:</strong> {{ solicitud.fecha_inicio }} - {{ solicitud.fecha_fin }}</p>
+        <p><strong>Motivo:</strong> {{ solicitud.motivo }}</p>
+        {% if solicitud.adjunto %}
+          <p><strong>Adjunto:</strong> <button type="button" class="btn btn-sm btn-outline-primary ver-adjunto-btn" data-url="{{ solicitud.adjunto.url }}" data-name="{{ solicitud.adjunto.name }}">Ver</button>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ solicitud.adjunto.url }}" download="{{ solicitud.adjunto.name }}">Descargar</a>
+          </p>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <div class="mb-3">
+            {{ form.observaciones_admin.label_tag }}
+            {{ form.observaciones_admin }}
+            {% if form.observaciones_admin.help_text %}
+              <div class="form-text">{{ form.observaciones_admin.help_text }}</div>
+            {% endif %}
+            {% if form.observaciones_admin.errors %}
+              <div class="text-danger">{{ form.observaciones_admin.errors }}</div>
+            {% endif %}
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-success" type="submit">{{ accion|title }}</button>
+            <a class="btn btn-secondary" href="{% url 'dashboard' %}">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

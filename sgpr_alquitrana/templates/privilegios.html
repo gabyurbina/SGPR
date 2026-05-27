@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-xl-10 col-lg-11">
+    <div class="auth-card">
+    <h3>Administrar privilegios</h3>
+    <p>Aquí puedes otorgar o revocar privilegios de administrador a los trabajadores.</p>
+    <div class="table-responsive mt-4">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Cédula</th>
+            <th>Cargo</th>
+            <th>Departamento</th>
+            <th>Administrador</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trabajador in trabajadores %}
+          <tr>
+            <td>{{ trabajador.user.get_full_name }}</td>
+            <td>{{ trabajador.cedula }}</td>
+            <td>{{ trabajador.cargo }}</td>
+            <td>{{ trabajador.departamento }}</td>
+            <td>{% if trabajador.user.is_staff %}Sí{% else %}No{% endif %}</td>
+            <td>
+              <form method="post" class="d-inline">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" value="{{ trabajador.user.id }}">
+                {% if trabajador.user.is_staff %}
+                <input type="hidden" name="action" value="revoke">
+                <button type="submit" class="btn btn-outline-danger btn-sm" {% if trabajador.user == request.user %}disabled{% endif %}>
+                  Quitar privilegios
+                </button>
+                {% else %}
+                <input type="hidden" name="action" value="grant">
+                <button type="submit" class="btn btn-outline-success btn-sm">
+                  Otorgar privilegios
+                </button>
+                {% endif %}
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6">No hay trabajadores registrados.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="mt-4">
+      <a href="{% url 'configuracion' %}" class="btn btn-secondary-custom">Volver a configuración</a>
+    </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

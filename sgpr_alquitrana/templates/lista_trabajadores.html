@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block content %}
+<!-- Página de administración de trabajadores. Permite filtrar, editar y exportar listados. -->
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+  <div>
+    <h3 class="fw-bold mb-1">Trabajadores</h3>
+    <p class="text-muted mb-0">Lista de personal registrado en el sistema.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2 align-items-center">
+    <a class="btn btn-outline-secondary btn-action btn-export" href="{% url 'exportar_trabajadores_excel' %}">Descargar XLSX</a>
+    <a class="btn btn-outline-secondary btn-action btn-export" href="{% url 'exportar_trabajadores_pdf' %}">Descargar PDF</a>
+    <a class="btn btn-primary-custom btn-export" href="{% url 'registro_trabajador' %}">Nuevo trabajador</a>
+  </div>
+</div>
+
+<form method="get" class="search-filters mb-4">
+  <div class="row gy-2 gx-2 align-items-center">
+    <div class="col-md-6">
+      <label class="form-label visually-hidden" for="search-query">Buscar</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+        <input id="search-query" name="q" type="search" class="form-control" placeholder="Buscar por cédula, nombre, apellido, correo, ubicación..." value="{{ query }}">
+      </div>
+    </div>
+    <div class="col-md-4">
+      <label class="form-label visually-hidden" for="filter-estado">Estado</label>
+      <select id="filter-estado" name="estado" class="form-select">
+        {% for value, label in estado_options %}
+          <option value="{{ value }}" {% if filtro_estado == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2 text-md-end">
+      <button type="submit" class="btn btn-secondary-custom w-100">Filtrar</button>
+    </div>
+  </div>
+</form>
+{% if page_obj and page_obj.paginator.count > 0 %}
+  <div class="table-container">
+    <div class="table-responsive">
+      <table class="table custom-table table-hover align-middle m-0">
+        <thead>
+          <tr>
+            <th>Cédula</th>
+            <th>Nombre</th>
+            <th>Cargo</th>
+            <th>Ubicación Administrativa</th>
+            <th>Cambio clave</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for trabajador in trabajadores %}
+            <tr>
+              <td>{{ trabajador.cedula }}</td>
+              <td>{{ trabajador.user.get_full_name }}</td>
+              <td>{{ trabajador.cargo }}</td>
+              <td>
+                {% if trabajador.departamento and trabajador.departamento|lower != '' %}
+                  {{ trabajador.departamento }}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if trabajador.password_reset_required %}
+                  <span class="status-badge status-pending">Obligatorio</span>
+                {% else %}
+                  <span class="status-badge status-approved">Completo</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-success btn-action me-1" href="{% url 'editar_trabajador' trabajador.id %}">Editar</a>
+                <a class="btn btn-sm btn-outline-warning btn-action me-1" href="{% url 'restablecer_contrasena' trabajador.id %}">Reset</a>
+                <a class="btn btn-sm btn-outline-danger btn-action" href="{% url 'eliminar_trabajador' trabajador.id %}">Eliminar</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="d-flex justify-content-end">
+      <nav aria-label="Paginación trabajadores">
+        <ul class="pagination pagination-sm mb-0">
+          {% if page_obj.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page={{ page_obj.previous_page_number }}">Anterior</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+          {% endif %}
+
+          {% for num in paginator.page_range %}
+            {% if num == page_obj.number %}
+              <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+            {% else %}
+              <li class="page-item"><a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page={{ num }}">{{ num }}</a></li>
+            {% endif %}
+          {% endfor %}
+
+          {% if page_obj.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page={{ page_obj.next_page_number }}">Siguiente</a>
+            </li>
+          {% else %}
+            <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
+  </div>
+{% else %}
+  <div class="table-container">
+    <p class="text-muted mb-0">No hay trabajadores registrados.</p>
+  </div>
+{% endif %}
+{% endblock %}

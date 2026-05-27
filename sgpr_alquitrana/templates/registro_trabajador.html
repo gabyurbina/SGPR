@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+{% block content %}
+<!-- Formulario de registro de trabajador. Se usa tanto en el login público como desde el admin. -->
+<div class="container px-4">
+  <div class="form-shell mx-auto">
+    <div class="form-card">
+      <div class="form-card-header">
+        <h3>Registro de Trabajador</h3>
+        {% if from_admin %}
+          <p>Registra al usuario con su número de cédula, nombres, apellidos y cargo para comenzar a usar el sistema.</p>
+        {% else %}
+          <p>Registra tu usuario con su número de cédula, nombres, apellidos y cargo para comenzar a usar el sistema.</p>
+        {% endif %}
+      </div>
+      <form method="post" class="form-body">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-primary-custom" type="submit">{% if from_admin %}Registrar trabajador{% else %}Registrarse{% endif %}</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

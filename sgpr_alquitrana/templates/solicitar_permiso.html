@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% block content %}
+<!-- Página de solicitud de permiso/reposo. Incluye cálculo dinámico de días continuos y laborables. -->
+<div class="row justify-content-center">
+  <div class="col-lg-8 col-md-10">
+    <div class="table-container">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h3 class="fw-bold mb-1">Solicitar Permiso / Reposo</h3>
+          <p class="text-muted mb-0">Completa el formulario para registrar tu solicitud con soporte adjunto.</p>
+        </div>
+      </div>
+      <form method="post" enctype="multipart/form-data" id="solicitud-form">
+        {% csrf_token %}
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label">Tipo de solicitud</label>
+            {{ form.tipo }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Fecha inicio</label>
+            {{ form.fecha_inicio }}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Fecha fin</label>
+            {{ form.fecha_fin }}
+          </div>
+        </div>
+
+        <div class="row mt-4 g-3">
+          <div class="col-sm-6">
+            <div class="stat-card">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-muted mb-1">Días continuos</h6>
+                  <p class="fs-3 fw-bold mb-0" id="dias-continuos">0</p>
+                </div>
+                <div class="icon-box icon-blue">
+                  <i class="fa-solid fa-calendar-days"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="stat-card">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="text-muted mb-1">Días laborables</h6>
+                  <p class="fs-3 fw-bold mb-0" id="dias-laborables">0</p>
+                </div>
+                <div class="icon-box icon-cyan">
+                  <i class="fa-solid fa-briefcase"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <label class="form-label">Motivo</label>
+          {{ form.motivo }}
+        </div>
+        <div class="mt-4">
+          <label class="form-label">Adjunto</label>
+          {{ form.adjunto }}
+          {% if form.adjunto.errors %}
+            <div class="text-danger">{{ form.adjunto.errors }}</div>
+          {% endif %}
+          <div class="form-text">Adjunta un PDF, PNG o JPG. Máximo 5MB.</div>
+        </div>
+        <div class="mt-4 text-center">
+          <button class="btn btn-primary-custom" type="submit">Enviar solicitud</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script>
+  function formatDate(date) {
+    return date.toISOString().slice(0, 10);
+  }
+
+  function getEasterSunday(year) {
+    const a = year % 19;
+    const b = Math.floor(year / 100);
+    const c = year % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31);
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(year, month - 1, day);
+  }
+
+  function getHolidaysVenezuela(year) {
+    const holidays = [];
+    const easter = getEasterSunday(year);
+    const carnivalMonday = new Date(easter);
+    carnivalMonday.setDate(easter.getDate() - 48);
+    const carnivalTuesday = new Date(easter);
+    carnivalTuesday.setDate(easter.getDate() - 47);
+    const goodFriday = new Date(easter);
+    goodFriday.setDate(easter.getDate() - 2);
+
+    holidays.push(new Date(year, 0, 1)); // Año Nuevo
+    holidays.push(new Date(year, 3, 19)); // Declaración de la independencia
+    holidays.push(new Date(year, 4, 1)); // Día del trabajador
+    holidays.push(new Date(year, 5, 24)); // Batalla de Carabobo
+    holidays.push(new Date(year, 6, 5)); // Día de la independencia
+    holidays.push(new Date(year, 6, 24)); // Natalicio de Bolívar
+    holidays.push(new Date(year, 9, 12)); // Día de la resistencia indígena
+    holidays.push(new Date(year, 11, 24)); // Nochebuena
+    holidays.push(new Date(year, 11, 25)); // Navidad
+    holidays.push(new Date(year, 11, 31)); // Fin de año
+    holidays.push(carnivalMonday);
+    holidays.push(carnivalTuesday);
+    holidays.push(goodFriday);
+    return holidays.map(date => formatDate(date));
+  }
+
+  function countWorkDays(startDate, endDate) {
+    if (!startDate || !endDate || startDate > endDate) {
+      return { continuos: 0, laborables: 0 };
+    }
+    const holidays = new Set([...getHolidaysVenezuela(startDate.getFullYear()), ...getHolidaysVenezuela(endDate.getFullYear())]);
+    let continuos = 0;
+    let laborables = 0;
+    let current = new Date(startDate);
+    while (current <= endDate) {
+      continuos += 1;
+      const iso = formatDate(current);
+      const weekday = current.getDay();
+      if (weekday !== 0 && weekday !== 6 && !holidays.has(iso)) {
+        laborables += 1;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return { continuos, laborables };
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const inicio = document.getElementById('id_fecha_inicio');
+    const fin = document.getElementById('id_fecha_fin');
+    const diasContinuos = document.getElementById('dias-continuos');
+    const diasLaborables = document.getElementById('dias-laborables');
+
+    function actualizarDias() {
+      const fechaInicio = inicio.value ? new Date(inicio.value) : null;
+      const fechaFin = fin.value ? new Date(fin.value) : null;
+      const resultado = countWorkDays(fechaInicio, fechaFin);
+      diasContinuos.textContent = resultado.continuos;
+      diasLaborables.textContent = resultado.laborables;
+    }
+
+    if (inicio) inicio.addEventListener('change', actualizarDias);
+    if (fin) fin.addEventListener('change', actualizarDias);
+    actualizarDias();
+  });
+</script>
+{% endblock %}

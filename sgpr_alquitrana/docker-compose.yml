@@ -1,0 +1,28 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: sgpr_db
+      POSTGRES_USER: sgpr_user
+      POSTGRES_PASSWORD: sgpr_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  web:
+    build: .
+    command: gunicorn sgpr_alquitrana.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://sgpr_user:sgpr_pass@db:5432/sgpr_db
+      DJANGO_SECRET_KEY: change-me-in-prod
+      DJANGO_DEBUG: 'False'
+    depends_on:
+      - db
+
+volumes:
+  pgdata:
