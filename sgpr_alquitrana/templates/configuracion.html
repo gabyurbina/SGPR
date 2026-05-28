@@ -8,10 +8,12 @@
       <div class="row mt-4 align-items-stretch">
       <div class="col-md-6 mb-3">
         <div class="card h-100 shadow-sm">
-          <div class="card-body">
+          <div class="card-body d-flex flex-column">
             <h5 class="card-title">Cambiar contraseña</h5>
             <p class="card-text">Actualiza tu contraseña segura. Esta opción está disponible para todos los usuarios.</p>
-            <a href="{% url 'cambiar_contrasena' %}" class="btn btn-primary-custom">Ir a cambiar contraseña</a>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+              <a href="{% url 'cambiar_contrasena' %}" class="btn btn-primary-custom">Ir a cambiar contraseña</a>
+            </div>
           </div>
         </div>
       </div>
@@ -21,7 +23,7 @@
           <div class="card-body d-flex flex-column">
             <h5 class="card-title">Privilegios de administradores</h5>
             <p class="card-text">Otorga o revoca derechos de administrador a los trabajadores registrados.</p>
-            <div class="mt-auto">
+            <div class="d-flex flex-wrap gap-2 mt-3">
               <a href="{% url 'privilegios' %}" class="btn btn-primary-custom">Gestionar privilegios</a>
             </div>
           </div>

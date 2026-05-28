@@ -6,6 +6,8 @@
 
 ## Contenido
 
+> Nota: no existe un archivo `readme.py` en este proyecto. La documentación principal se mantiene en `README.md`.
+
 - [Requisitos](#requisitos)
 - [Instalación local](#instalaci%C3%B3n-local)
 - [Variables de entorno](#variables-de-entorno)
@@ -62,7 +64,34 @@ El proyecto carga algunos valores desde variables de entorno. Los valores predet
 - `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_BACKEND`: para envío de correos.
 - `DEFAULT_FROM_EMAIL`: emisor del correo.
 
-Para desarrollo local no es obligatorio configurar todos estos valores.
+Si `EMAIL_HOST` no está configurado, el sistema usa el backend de consola (`console.EmailBackend`) y el correo se imprimirá en la terminal en lugar de enviarse realmente.
+
+El proyecto también carga automáticamente un archivo `.env` en la raíz del proyecto si existe.
+
+---
+
+## Configurar SMTP real
+
+Para que los correos lleguen efectivamente a los trabajadores, configura estas variables de entorno en tu `.env` o en el entorno del servidor:
+
+```env
+EMAIL_HOST=smtp.tuservidor.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=tu_usuario_smtp@tu_dominio.com
+EMAIL_HOST_PASSWORD=tu_contraseña_smtp
+DEFAULT_FROM_EMAIL="SGPR <no-reply@tu_dominio.com>"
+```
+
+- `EMAIL_HOST`: servidor SMTP de tu proveedor.
+- `EMAIL_PORT`: normalmente `587` para TLS.
+- `EMAIL_USE_TLS`: `True` para StartTLS.
+- `EMAIL_HOST_USER` y `EMAIL_HOST_PASSWORD`: credenciales SMTP.
+- `DEFAULT_FROM_EMAIL`: dirección remitente que verá el destinatario.
+
+Si usas Gmail/Google Workspace, habilita una contraseña de aplicación y usa `EMAIL_PORT=587` con `EMAIL_USE_TLS=True`.
+
+Después de configurar estas variables, reinicia el servidor Django para que se apliquen.
 
 ---
 
@@ -128,6 +157,38 @@ Para desarrollo local no es obligatorio configurar todos estos valores.
 | `/trabajadores/descargar/pdf/` | Exportar trabajadores a PDF |
 | `/auditoria/descargar/xlsx/` | Exportar auditoría a Excel |
 | `/auditoria/descargar/pdf/` | Exportar auditoría a PDF |
+| `/api/trabajadores/registro/` | API JSON para registrar un trabajador y enviar notificación al correo |
+
+---
+
+## API de registro de trabajadores
+
+La aplicación ahora expone una API simple para crear trabajadores desde un cliente JSON. Esta API registra al trabajador, crea el usuario `username=cedula`, utiliza `DEFAULT_PASSWORD` como contraseña inicial y envía automáticamente una notificación por correo con formato SGPR.
+
+- Método: `POST`
+- URL: `/api/trabajadores/registro/`
+- Payload JSON:
+  - `cedula`
+  - `nombres`
+  - `apellidos`
+  - `cargo`
+  - `departamento`
+  - `email`
+
+> Nota: el API valida que no exista ya un usuario con la misma cédula ni con el mismo correo electrónico.
+
+Ejemplo:
+
+```json
+{
+  "cedula": "12345678",
+  "nombres": "Juan",
+  "apellidos": "Pérez",
+  "cargo": "Auxiliar",
+  "departamento": "Operaciones",
+  "email": "juan.perez@ejemplo.com"
+}
+```
 
 ---
 

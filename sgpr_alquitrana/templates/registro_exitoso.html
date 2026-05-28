@@ -14,7 +14,7 @@
       </p>
       <p class="auth-note">La contraseña mostrada es la contraseña por defecto. Por seguridad, cámbiala en tu primer acceso.</p>
       {% if from_admin %}
-        <p class="auth-note text-danger mt-2">Si deseas iniciar sesión como este trabajador, primero debes cerrar tu sesión de administrador.</p>
+        <p class="auth-note text-danger mt-2">Si deseas iniciar sesión con este trabajador, primero debes cerrar tu sesión de administrador.</p>
         <a class="btn btn-secondary-custom mt-3 disabled" href="{% url 'login' %}" tabindex="-1" aria-disabled="true">Ingresar</a>
       {% else %}
         <a class="btn btn-primary-custom mt-3" href="{% url 'login' %}">Ingresar</a>

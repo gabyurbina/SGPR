@@ -13,12 +13,14 @@ from django.contrib.auth import views as auth_views
 from django.contrib.staticfiles import finders
 from django.db.models import Q
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.http import HttpResponse
-from django.core.mail import send_mail
+import json
+
+from django.http import HttpResponse, JsonResponse
 from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
-from django.template.loader import render_to_string
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 
 from openpyxl import Workbook
 from reportlab.lib.pagesizes import letter
@@ -127,39 +129,6 @@ def registro_trabajador(request):
             if email:
                 user.email = email
                 user.save()
-                # Enviar correo con credenciales en HTML y texto plano
-                subject = 'Acceso SGPR - credenciales de inicio'
-                from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', None) or getattr(settings, 'EMAIL_HOST_USER', 'no-reply@localhost')
-                text_message = (
-                    f"Hola {nombres} {apellidos},\n\n"
-                    f"Tu cuenta en SGPR ha sido creada.\n"
-                    f"Usuario: {username}\n"
-                    f"Contraseña inicial: {password}\n\n"
-                    "Por seguridad, cambia tu contraseña en tu primer acceso.\n\n"
-                    "Saludos,\nEquipo SGPR"
-                )
-                html_message = render_to_string(
-                    'email/registro_credenciales.html',
-                    {
-                        'nombres': nombres,
-                        'apellidos': apellidos,
-                        'username': username,
-                        'password': password,
-                        'login_url': request.build_absolute_uri(reverse('login')),
-                    },
-                )
-                try:
-                    send_mail(
-                        subject,
-                        text_message,
-                        from_email,
-                        [email],
-                        html_message=html_message,
-                        fail_silently=False,
-                    )
-                    messages.info(request, 'Se envió un correo con las credenciales al email proporcionado.')
-                except Exception as e:
-                    messages.error(request, f'No se pudo enviar el correo: {e}')
 
             trabajador = Trabajador.objects.create(
                 user=user,
@@ -174,7 +143,10 @@ def registro_trabajador(request):
                 accion='REGISTRO',
                 tabla_afectada='Trabajador',
                 registro_id=trabajador.id,
-                detalles=f"Registro de trabajador {trabajador} con usuario {user.username}.",
+                detalles=(
+                    f"Registro de trabajador {trabajador.user.get_full_name()} (Cédula: {trabajador.cedula}) "
+                    f"con usuario {user.username}."
+                ),
             )
 
             messages.success(request, 'Trabajador registrado correctamente. Inicia sesión con la contraseña por defecto y cámbiala en tu primer acceso.')
@@ -191,6 +163,90 @@ def registro_trabajador(request):
         form = RegistroTrabajadorForm()
 
     return render(request, 'registro_trabajador.html', {'form': form, 'from_admin': from_admin})
+
+
+@csrf_exempt
+@require_POST
+def api_registro_trabajador(request):
+    """API para registrar un nuevo trabajador sin enviar notificaciones por correo."""
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        payload = request.POST
+
+    cedula = payload.get('cedula') or request.POST.get('cedula')
+    nombres = payload.get('nombres') or request.POST.get('nombres')
+    apellidos = payload.get('apellidos') or request.POST.get('apellidos')
+    cargo = payload.get('cargo') or request.POST.get('cargo')
+    departamento = payload.get('departamento') or request.POST.get('departamento')
+    email = payload.get('email') or request.POST.get('email')
+
+    if not all([cedula, nombres, apellidos, cargo, departamento]):
+        return JsonResponse(
+            {
+                'success': False,
+                'error': 'Faltan datos obligatorios. Se requieren cedula, nombres, apellidos, cargo y departamento.',
+            },
+            status=400,
+        )
+
+    if not cedula.isdigit():
+        return JsonResponse(
+            {
+                'success': False,
+                'error': 'La cédula solo debe contener números, sin letras ni caracteres especiales.',
+            },
+            status=400,
+        )
+
+    if Trabajador.objects.filter(cedula=cedula).exists() or User.objects.filter(username=cedula).exists():
+        return JsonResponse(
+            {'success': False, 'error': 'Ya existe un trabajador con esa cédula o usuario.'},
+            status=400,
+        )
+
+    if email and User.objects.filter(email__iexact=email).exists():
+        return JsonResponse(
+            {'success': False, 'error': 'Ya existe un usuario registrado con este correo electrónico.'},
+            status=400,
+        )
+
+    username = cedula
+    password = settings.DEFAULT_PASSWORD
+    user = User.objects.create_user(
+        username=username,
+        first_name=nombres,
+        last_name=apellidos,
+        password=password,
+        email=email or '',
+    )
+
+    trabajador = Trabajador.objects.create(
+        user=user,
+        cedula=cedula,
+        cargo=cargo,
+        departamento=departamento,
+        password_reset_required=True,
+    )
+
+    Auditoria.objects.create(
+        usuario=user,
+        accion='REGISTRO',
+        tabla_afectada='Trabajador',
+        registro_id=trabajador.id,
+        detalles=(
+            f"Registro de trabajador {trabajador.user.get_full_name()} (Cédula: {trabajador.cedula}) "
+            f"con usuario {user.username} mediante API."
+        ),
+    )
+
+    return JsonResponse(
+        {
+            'success': True,
+            'message': 'Trabajador registrado correctamente.',
+            'username': username,
+        }
+    )
 
 
 @login_required
@@ -298,7 +354,9 @@ def editar_trabajador(request, trabajador_id):
                 accion='EDICIÓN',
                 tabla_afectada='Trabajador',
                 registro_id=trabajador.id,
-                detalles=f"Datos actualizados para {trabajador}.",
+                detalles=(
+                    f"Datos actualizados para {trabajador.user.get_full_name()} (Cédula: {trabajador.cedula})."
+                ),
             )
             if form.cleaned_data.get('password'):
                 messages.success(request, 'Datos guardados. La contraseña del trabajador se ha cambiado correctamente.')
@@ -326,7 +384,9 @@ def restablecer_contrasena(request, trabajador_id):
             accion='RESET_PASSWORD',
             tabla_afectada='User',
             registro_id=trabajador.user.id,
-            detalles=f"Contraseña restablecida para usuario {trabajador.user.username}.",
+            detalles=(
+                f"Contraseña restablecida para {trabajador.user.get_full_name()} (Cédula: {trabajador.cedula})."
+            ),
         )
         messages.success(
             request,
@@ -376,7 +436,28 @@ def configuracion(request):
 @user_passes_test(lambda u: u.is_staff)
 def administrar_privilegios(request):
     """Permite a los administradores asignar o revocar privilegios de administrador."""
+    query = request.GET.get('q', '').strip()
     trabajadores = Trabajador.objects.select_related('user').all().order_by('user__last_name')
+
+    if query:
+        trabajadores = trabajadores.filter(
+            Q(cedula__icontains=query)
+            | Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(user__email__icontains=query)
+            | Q(cargo__icontains=query)
+            | Q(departamento__icontains=query)
+        )
+
+    # Paginación: 10 trabajadores por página
+    page = request.GET.get('page', 1)
+    paginator = Paginator(trabajadores, 10)
+    try:
+        trabajadores_page = paginator.page(page)
+    except PageNotAnInteger:
+        trabajadores_page = paginator.page(1)
+    except EmptyPage:
+        trabajadores_page = paginator.page(paginator.num_pages)
 
     if request.method == 'POST':
         user_id = request.POST.get('user_id')
@@ -396,11 +477,17 @@ def administrar_privilegios(request):
             else:
                 if action == 'grant':
                     target_user.is_staff = True
-                    detalle = f'Privilegios de administrador otorgados a {target_user.username}.'
+                    detalle = (
+                        f'Privilegios de administrador otorgados a {target_user.get_full_name()} '
+                        f'(Cédula: {trabajador.cedula}).'
+                    )
                     messages.success(request, f'Se otorgaron privilegios a {target_user.get_full_name()}.')
                 else:
                     target_user.is_staff = False
-                    detalle = f'Privilegios de administrador revocados a {target_user.username}.'
+                    detalle = (
+                        f'Privilegios de administrador revocados a {target_user.get_full_name()} '
+                        f'(Cédula: {trabajador.cedula}).'
+                    )
                     messages.success(request, f'Se revocaron privilegios a {target_user.get_full_name()}.')
                 target_user.save()
                 Auditoria.objects.create(
@@ -414,7 +501,16 @@ def administrar_privilegios(request):
             messages.error(request, 'Solicitud inválida para la gestión de privilegios.')
         return redirect('privilegios')
 
-    return render(request, 'privilegios.html', {'trabajadores': trabajadores})
+    return render(
+        request,
+        'privilegios.html',
+        {
+            'trabajadores': trabajadores_page,
+            'page_obj': trabajadores_page,
+            'paginator': paginator,
+            'query': query,
+        },
+    )
 
 
 @login_required

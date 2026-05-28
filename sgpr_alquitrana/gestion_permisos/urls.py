@@ -11,6 +11,7 @@ urlpatterns = [
     path('cambiar-contrasena/', views.cambiar_contrasena, name='cambiar_contrasena'),
     path('configuracion/', views.configuracion, name='configuracion'),
     path('configuracion/privilegios/', views.administrar_privilegios, name='privilegios'),
+    path('api/trabajadores/registro/', views.api_registro_trabajador, name='api_registro_trabajador'),
     path('trabajadores/', views.lista_trabajadores, name='lista_trabajadores'),
     path('trabajadores/<int:trabajador_id>/editar/', views.editar_trabajador, name='editar_trabajador'),
     path('trabajadores/<int:trabajador_id>/restablecer/', views.restablecer_contrasena, name='restablecer_contrasena'),
