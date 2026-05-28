@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load date_filters %}
 {% block content %}
 <!-- Página de auditoría: lista de registros con exportación XLSX/PDF. -->
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -47,8 +48,8 @@
       <tbody>
         {% for log in logs %}
           <tr>
-            <td>{{ log.fecha_hora }}</td>
-            <td>{{ log.usuario }}</td>
+            <td>{{ log.fecha_hora|format_datetime }}</td>
+            <td>{{ log.usuario_nombre_completo }}</td>
             <td>{{ log.accion }}</td>
             <td>{{ log.tabla_afectada }}</td>
             <td>{{ log.registro_id }}</td>

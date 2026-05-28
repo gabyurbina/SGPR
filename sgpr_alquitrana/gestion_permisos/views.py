@@ -3,6 +3,7 @@ Funciones para el registro de permisos, reposos, trabajadores y auditoría.
 """
 
 from io import BytesIO
+import datetime
 
 from django.contrib import messages
 from django.contrib.auth import logout, update_session_auth_hash
@@ -23,8 +24,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment
+from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.utils import ImageReader
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as ReportLabImage
 
 from .forms import (
     CedulaAuthenticationForm,
@@ -43,6 +48,28 @@ def get_encabezado_path():
     return image_path
 
 
+def format_datetime(dt):
+    """Formato uniforme: DD-MM-YYYY hh:mm:ss a.m./p.m."""
+    if not dt:
+        return ''
+
+    if isinstance(dt, datetime.date) and not isinstance(dt, datetime.datetime):
+        return dt.strftime('%d-%m-%Y')
+
+    formatted = dt.strftime('%d-%m-%Y %I:%M:%S %p')
+    return formatted.replace('AM', 'a.m.').replace('PM', 'p.m.')
+
+
+def agregar_numeracion_paginas(canvas, doc):
+    """Dibuja el número de página en el pie de página de los PDF."""
+    canvas.saveState()
+    canvas.setFont('Helvetica', 8)
+    width, height = doc.pagesize
+    page_number_text = f'Página {canvas.getPageNumber()}'
+    canvas.drawRightString(width - doc.rightMargin, 15, page_number_text)
+    canvas.restoreState()
+
+
 def es_gestion_humana(user):
     """Determina si el usuario pertenece a Gestión Humana (staff o grupo)."""
     return user.is_staff or user.groups.filter(name='Gestion_Humana').exists()
@@ -53,42 +80,93 @@ def dashboard(request):
     """Panel principal: lista de solicitudes según el rol del usuario."""
     query = request.GET.get('q', '').strip()
     filtro_estado = request.GET.get('estado', 'TODOS')
-    if es_gestion_humana(request.user):
-        solicitudes = Solicitud.objects.select_related('trabajador__user').all().order_by('-fecha_creacion')
+
+    is_worker = Trabajador.objects.filter(user=request.user).exists()
+
+    # Solicitudes personales (si el usuario es trabajador)
+    if request.user.is_authenticated and is_worker:
+        personal_qs = Solicitud.objects.select_related('trabajador__user').filter(trabajador__user=request.user).order_by('-fecha_creacion')
     else:
-        solicitudes = Solicitud.objects.select_related('trabajador__user').filter(trabajador__user=request.user).order_by('-fecha_creacion')
+        personal_qs = Solicitud.objects.none()
 
-    if filtro_estado and filtro_estado != 'TODOS':
-        solicitudes = solicitudes.filter(estado=filtro_estado)
+    # Solicitudes para administración (solo para gestores)
+    admin_qs = None
+    if es_gestion_humana(request.user):
+        admin_qs = Solicitud.objects.select_related('trabajador__user').all().order_by('-fecha_creacion')
 
-    if query:
-        solicitudes = solicitudes.filter(
-            Q(trabajador__cedula__icontains=query)
-            | Q(trabajador__user__first_name__icontains=query)
-            | Q(trabajador__user__last_name__icontains=query)
-            | Q(trabajador__departamento__icontains=query)
-            | Q(tipo__icontains=query)
-            | Q(observaciones_admin__icontains=query)
+    # IDs de usuarios administradores que también son trabajadores.
+    admin_worker_user_ids = []
+    if es_gestion_humana(request.user):
+        admin_worker_user_ids = list(
+            User.objects.filter(
+                pk__in=Trabajador.objects.values('user'),
+            )
+            .filter(
+                Q(is_staff=True) | Q(groups__name='Gestion_Humana')
+            )
+            .distinct()
+            .values_list('pk', flat=True)
         )
 
-    # Paginación: 10 solicitudes por página
-    page = request.GET.get('page', 1)
-    paginator = Paginator(solicitudes, 10)
+    # Aplicar filtros y búsqueda a cada queryset según corresponda
+    def apply_filters(qs):
+        if not qs:
+            return qs
+        if filtro_estado and filtro_estado != 'TODOS':
+            qs = qs.filter(estado=filtro_estado)
+        if query:
+            qs = qs.filter(
+                Q(trabajador__cedula__icontains=query)
+                | Q(trabajador__user__first_name__icontains=query)
+                | Q(trabajador__user__last_name__icontains=query)
+                | Q(trabajador__departamento__icontains=query)
+                | Q(tipo__icontains=query)
+                | Q(observaciones_admin__icontains=query)
+            )
+        return qs
+
+    personal_qs = apply_filters(personal_qs)
+    admin_qs = apply_filters(admin_qs) if admin_qs is not None else None
+
+    # Paginación separada: `page_personal` y `page_admin`
+    personal_page = None
+    admin_page = None
+    paginator_personal = None
+    paginator_admin = None
+
+    # Personal pagination
+    page_personal = request.GET.get('page_personal', 1)
+    paginator_personal = Paginator(personal_qs, 10)
     try:
-        solicitudes_page = paginator.page(page)
+        personal_page = paginator_personal.page(page_personal)
     except PageNotAnInteger:
-        solicitudes_page = paginator.page(1)
+        personal_page = paginator_personal.page(1)
     except EmptyPage:
-        solicitudes_page = paginator.page(paginator.num_pages)
+        personal_page = paginator_personal.page(paginator_personal.num_pages)
+
+    # Admin pagination (si aplica)
+    if admin_qs is not None:
+        page_admin = request.GET.get('page_admin', 1)
+        paginator_admin = Paginator(admin_qs, 10)
+        try:
+            admin_page = paginator_admin.page(page_admin)
+        except PageNotAnInteger:
+            admin_page = paginator_admin.page(1)
+        except EmptyPage:
+            admin_page = paginator_admin.page(paginator_admin.num_pages)
 
     return render(
         request,
         'dashboard.html',
         {
-            'solicitudes': solicitudes_page,
-            'page_obj': solicitudes_page,
-            'paginator': paginator,
+            'personal_page': personal_page,
+            'paginator_personal': paginator_personal,
+            'admin_page': admin_page,
+            'paginator_admin': paginator_admin,
             'es_admin': es_gestion_humana(request.user),
+            'is_worker': is_worker,
+            'is_super_admin': request.user.username == 'admin',
+            'admin_worker_user_ids': admin_worker_user_ids,
             'query': query,
             'filtro_estado': filtro_estado,
             'estado_options': [
@@ -516,7 +594,7 @@ def administrar_privilegios(request):
 @login_required
 def solicitar_permiso(request):
     """Permite al trabajador enviar una nueva solicitud con adjunto opcional."""
-    if es_gestion_humana(request.user):
+    if not Trabajador.objects.filter(user=request.user).exists() or request.user.username == 'admin':
         return redirect('dashboard')
 
     trabajador = get_object_or_404(Trabajador, user=request.user)
@@ -620,8 +698,17 @@ def add_excel_header_image(hoja, workbook):
         try:
             from openpyxl.drawing.image import Image as ExcelImage
             img = ExcelImage(encabezado_path)
-            img.width = 520
-            img.height = 120
+            max_width, max_height = 520, 120
+            try:
+                from PIL import Image as PilImage
+                with PilImage.open(encabezado_path) as pil_img:
+                    orig_w, orig_h = pil_img.size
+                    scale = min(max_width / orig_w, max_height / orig_h, 1)
+                    img.width = int(orig_w * scale)
+                    img.height = int(orig_h * scale)
+            except ImportError:
+                img.width = max_width
+                img.height = max_height
             hoja.add_image(img, 'A1')
             hoja.row_dimensions[1].height = 90
         except Exception:
@@ -632,11 +719,15 @@ def add_pdf_header_image(documento, ancho, alto):
     encabezado_path = get_encabezado_path()
     if encabezado_path:
         try:
-            image_width = 420
-            image_height = 100
-            x = (ancho - image_width) / 2
-            y = alto - image_height - 20
-            documento.drawImage(encabezado_path, x, y, width=image_width, height=image_height, preserveAspectRatio=True, mask='auto')
+            image_reader = ImageReader(encabezado_path)
+            orig_w, orig_h = image_reader.getSize()
+            max_width, max_height = 420, 100
+            scale = min(max_width / orig_w, max_height / orig_h, 1)
+            draw_w = orig_w * scale
+            draw_h = orig_h * scale
+            x = 30
+            y = alto - draw_h - 20
+            documento.drawImage(encabezado_path, x, y, width=draw_w, height=draw_h, preserveAspectRatio=True, mask='auto')
         except Exception:
             pass
 
@@ -646,23 +737,47 @@ def add_pdf_header_image(documento, ancho, alto):
 def exportar_auditoria_excel(request):
     """Exporta el reporte de auditoría a Excel."""
     logs = Auditoria.objects.all()
+    now = datetime.datetime.now()
+    generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM', 'a.m.').replace('PM', 'p.m.')
+    timestamp = now.strftime('%Y%m%d_%I%M%S')
+
     workbook = Workbook()
     hoja = workbook.active
     hoja.title = 'Auditoría'
     add_excel_header_image(hoja, workbook)
 
+    hoja.append(['Fecha de descarga:', '', '', '', '', generated_at])
     hoja.append([])
+    headers = ['Fecha/Hora', 'Usuario', 'Acción', 'Tabla', 'Registro', 'Detalles']
+    hoja.append(headers)
 
-    hoja.append(['Fecha/Hora', 'Usuario', 'Acción', 'Tabla', 'Registro', 'Detalles'])
+    for col_num, _ in enumerate(headers, start=1):
+        cell = hoja.cell(row=3, column=col_num)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
     for log in logs:
         hoja.append([
-            log.fecha_hora.strftime('%Y-%m-%d %H:%M:%S'),
-            str(log.usuario),
+            format_datetime(log.fecha_hora),
+            log.usuario_nombre_completo,
             log.accion,
             log.tabla_afectada,
             log.registro_id,
             log.detalles,
         ])
+
+    for row in hoja.iter_rows(min_row=4, max_row=hoja.max_row, min_col=1, max_col=6):
+        for cell in row:
+            cell.alignment = Alignment(wrap_text=True, vertical='top')
+
+    hoja.column_dimensions['A'].width = 20
+    hoja.column_dimensions['B'].width = 30
+    hoja.column_dimensions['C'].width = 20
+    hoja.column_dimensions['D'].width = 20
+    hoja.column_dimensions['E'].width = 18
+    hoja.column_dimensions['F'].width = 60
+    hoja.page_setup.fitToWidth = 1
+    hoja.page_setup.fitToHeight = 0
 
     salida = BytesIO()
     workbook.save(salida)
@@ -672,7 +787,7 @@ def exportar_auditoria_excel(request):
         salida.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = 'attachment; filename=auditoria.xlsx'
+    response['Content-Disposition'] = f'attachment; filename=auditoria_{timestamp}.xlsx'
     return response
 
 
@@ -681,35 +796,114 @@ def exportar_auditoria_excel(request):
 def exportar_auditoria_pdf(request):
     """Exporta el reporte de auditoría a PDF."""
     logs = Auditoria.objects.all()
+    now = datetime.datetime.now()
+    generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM', 'a.m.').replace('PM', 'p.m.')
+    timestamp = now.strftime('%Y%m%d_%I%M%S')
+
     buffer = BytesIO()
-    documento = canvas.Canvas(buffer, pagesize=letter)
-    ancho, alto = letter
-    add_pdf_header_image(documento, ancho, alto)
-    y = alto - 140
-    documento.setFont('Helvetica-Bold', 12)
-    documento.drawString(30, y, 'Reporte de Auditoría')
-    y -= 30
-    documento.setFont('Helvetica', 9)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Heading1'],
+        alignment=1,
+        fontSize=16,
+        leading=20,
+        spaceAfter=10,
+    )
+    normal_style = ParagraphStyle(
+        'Normal',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=14,
+    )
+
+    story = []
+    encabezado_path = get_encabezado_path()
+    if encabezado_path:
+        try:
+            image_reader = ImageReader(encabezado_path)
+            orig_w, orig_h = image_reader.getSize()
+            max_width, max_height = 420, 100
+            scale = min(max_width / orig_w, max_height / orig_h, 1)
+            img = ReportLabImage(encabezado_path, width=orig_w * scale, height=orig_h * scale)
+        except Exception:
+            img = ReportLabImage(encabezado_path, width=420, height=100)
+        img.hAlign = 'LEFT'
+        story.append(img)
+        story.append(Spacer(1, 10))
+
+    right_style = ParagraphStyle(
+        'Right',
+        parent=styles['Normal'],
+        alignment=2,
+        fontSize=9,
+        leading=12,
+        spaceAfter=12,
+    )
+    story.append(Paragraph('Reporte de Auditoría', title_style))
+    story.append(Paragraph(f'Fecha de descarga: {generated_at}', right_style))
+    story.append(Spacer(1, 12))
+
+    header_style = ParagraphStyle(
+        'Header',
+        parent=styles['Normal'],
+        alignment=1,
+        fontSize=10,
+        leading=12,
+        fontName='Helvetica-Bold',
+        spaceAfter=4,
+    )
+    data = [[
+        Paragraph('Fecha/Hora', header_style),
+        Paragraph('Usuario', header_style),
+        Paragraph('Acción', header_style),
+        Paragraph('Tabla', header_style),
+        Paragraph('Registro', header_style),
+        Paragraph('Detalles', header_style),
+    ]]
+
+    cell_style = ParagraphStyle(
+        'Cell',
+        parent=styles['Normal'],
+        alignment=4,
+        fontSize=9,
+        leading=12,
+        spaceAfter=4,
+    )
 
     for log in logs:
-        texto = (
-            f"{log.fecha_hora:%Y-%m-%d %H:%M:%S} | {log.usuario} | {log.accion} | "
-            f"{log.tabla_afectada} | {log.registro_id}"
-        )
-        documento.drawString(30, y, texto[:120])
-        y -= 12
-        documento.drawString(30, y, f"Detalles: {log.detalles[:120]}")
-        y -= 20
-        if y < 80:
-            documento.showPage()
-            add_pdf_header_image(documento, ancho, alto)
-            documento.setFont('Helvetica', 9)
-            y = alto - 140
+        detalles = Paragraph(str(log.detalles), cell_style)
+        data.append([
+            Paragraph(format_datetime(log.fecha_hora), cell_style),
+            Paragraph(log.usuario_nombre_completo, cell_style),
+            Paragraph(log.accion, cell_style),
+            Paragraph(log.tabla_afectada, cell_style),
+            Paragraph(str(log.registro_id), cell_style),
+            detalles,
+        ])
 
-    documento.save()
+    table = Table(data, colWidths=[85, 115, 75, 75, 55, 150], repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f2f2f2')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('INNERGRID', (0, 0), (-1, -1), 0, colors.white),
+        ('BOX', (0, 0), (-1, -1), 0, colors.white),
+    ]))
+
+    story.append(table)
+    doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
     buffer.seek(0)
-    response = HttpResponse(buffer, content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename=auditoria.pdf'
+
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=auditoria_{timestamp}.pdf'
     return response
 
 
@@ -718,14 +912,23 @@ def exportar_auditoria_pdf(request):
 def exportar_trabajadores_excel(request):
     """Exporta la lista de trabajadores a Excel."""
     trabajadores = Trabajador.objects.select_related('user').order_by('user__last_name')
+    now = datetime.datetime.now()
+    generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM', 'a.m.').replace('PM', 'p.m.')
     workbook = Workbook()
     hoja = workbook.active
     hoja.title = 'Trabajadores'
     add_excel_header_image(hoja, workbook)
 
+    hoja.append(['Fecha de descarga:', '', '', '', '', generated_at])
     hoja.append([])
+    headers = ['Cédula', 'Nombre', 'Correo', 'Cargo', 'Ubicación Administrativa', 'Cambio clave']
+    hoja.append(headers)
 
-    hoja.append(['Cédula', 'Nombre', 'Correo', 'Cargo', 'Ubicación Administrativa', 'Cambio clave'])
+    for col_num, _ in enumerate(headers, start=1):
+        cell = hoja.cell(row=3, column=col_num)
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
     for trabajador in trabajadores:
         hoja.append([
             trabajador.cedula,
@@ -735,6 +938,19 @@ def exportar_trabajadores_excel(request):
             trabajador.departamento,
             'Obligatorio' if trabajador.password_reset_required else 'Completo',
         ])
+
+    for row in hoja.iter_rows(min_row=4, max_row=hoja.max_row, min_col=1, max_col=6):
+        for cell in row:
+            cell.alignment = Alignment(wrap_text=True, vertical='top')
+
+    hoja.column_dimensions['A'].width = 15
+    hoja.column_dimensions['B'].width = 30
+    hoja.column_dimensions['C'].width = 30
+    hoja.column_dimensions['D'].width = 20
+    hoja.column_dimensions['E'].width = 25
+    hoja.column_dimensions['F'].width = 18
+    hoja.page_setup.fitToWidth = 1
+    hoja.page_setup.fitToHeight = 0
 
     salida = BytesIO()
     workbook.save(salida)
@@ -752,31 +968,111 @@ def exportar_trabajadores_excel(request):
 def exportar_trabajadores_pdf(request):
     """Exporta la lista de trabajadores a PDF."""
     trabajadores = Trabajador.objects.select_related('user').order_by('user__last_name')
+    now = datetime.datetime.now()
+    generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM', 'a.m.').replace('PM', 'p.m.')
+    timestamp = now.strftime('%Y%m%d_%I%M%S')
+
     buffer = BytesIO()
-    documento = canvas.Canvas(buffer, pagesize=letter)
-    ancho, alto = letter
-    add_pdf_header_image(documento, ancho, alto)
-    y = alto - 140
-    documento.setFont('Helvetica-Bold', 12)
-    documento.drawString(30, y, 'Lista de Trabajadores')
-    y -= 30
-    documento.setFont('Helvetica', 9)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Heading1'],
+        alignment=1,
+        fontSize=16,
+        leading=20,
+        spaceAfter=10,
+    )
+    normal_style = ParagraphStyle(
+        'Normal',
+        parent=styles['Normal'],
+        fontSize=10,
+        leading=14,
+    )
+    header_style = ParagraphStyle(
+        'Header',
+        parent=styles['Normal'],
+        alignment=1,
+        fontSize=10,
+        leading=12,
+        fontName='Helvetica-Bold',
+        spaceAfter=4,
+    )
+    cell_style = ParagraphStyle(
+        'Cell',
+        parent=styles['Normal'],
+        alignment=4,
+        fontSize=9,
+        leading=12,
+        spaceAfter=4,
+    )
+
+    story = []
+    encabezado_path = get_encabezado_path()
+    if encabezado_path:
+        try:
+            image_reader = ImageReader(encabezado_path)
+            orig_w, orig_h = image_reader.getSize()
+            max_width, max_height = 420, 100
+            scale = min(max_width / orig_w, max_height / orig_h, 1)
+            img = ReportLabImage(encabezado_path, width=orig_w * scale, height=orig_h * scale)
+        except Exception:
+            img = ReportLabImage(encabezado_path, width=420, height=100)
+        img.hAlign = 'LEFT'
+        story.append(img)
+        story.append(Spacer(1, 10))
+
+    right_style = ParagraphStyle(
+        'Right',
+        parent=styles['Normal'],
+        alignment=2,
+        fontSize=9,
+        leading=12,
+        spaceAfter=12,
+    )
+    story.append(Paragraph('Lista de Trabajadores', title_style))
+    story.append(Paragraph(f'Fecha de descarga: {generated_at}', right_style))
+    story.append(Spacer(1, 12))
+
+    data = [[
+        Paragraph('Cédula', header_style),
+        Paragraph('Nombre', header_style),
+        Paragraph('Correo', header_style),
+        Paragraph('Cargo', header_style),
+        Paragraph('Ubicación Administrativa', header_style),
+        Paragraph('Cambio clave', header_style),
+    ]]
 
     for trabajador in trabajadores:
-        documento.drawString(30, y, f"{trabajador.cedula} | {trabajador.user.get_full_name()} | {trabajador.user.email}")
-        y -= 12
-        documento.drawString(30, y, f"{trabajador.cargo} | {trabajador.departamento} | {'Obligatorio' if trabajador.password_reset_required else 'Completo'}")
-        y -= 20
-        if y < 80:
-            documento.showPage()
-            add_pdf_header_image(documento, ancho, alto)
-            documento.setFont('Helvetica', 9)
-            y = alto - 140
+        data.append([
+            Paragraph(trabajador.cedula, cell_style),
+            Paragraph(trabajador.user.get_full_name(), cell_style),
+            Paragraph(trabajador.user.email or '', cell_style),
+            Paragraph(trabajador.cargo or '', cell_style),
+            Paragraph(trabajador.departamento or '', cell_style),
+            Paragraph('Obligatorio' if trabajador.password_reset_required else 'Completo', cell_style),
+        ])
 
-    documento.save()
+    table = Table(data, colWidths=[70, 120, 110, 80, 95, 70], repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f2f2f2')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.black),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('INNERGRID', (0, 0), (-1, -1), 0, colors.white),
+        ('BOX', (0, 0), (-1, -1), 0, colors.white),
+    ]))
+
+    story.append(table)
+    doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
     buffer.seek(0)
-    response = HttpResponse(buffer, content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename=trabajadores.pdf'
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=trabajadores_{timestamp}.pdf'
     return response
 
 

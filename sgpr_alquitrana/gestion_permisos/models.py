@@ -147,4 +147,11 @@ class Auditoria(models.Model):
         ordering = ['-fecha_hora']
 
     def __str__(self):
-        return f"{self.fecha_hora} - {self.usuario} - {self.accion}"
+        return f"{self.fecha_hora} - {self.usuario_nombre_completo} - {self.accion}"
+
+    @property
+    def usuario_nombre_completo(self):
+        if self.usuario:
+            full_name = self.usuario.get_full_name().strip()
+            return full_name if full_name else self.usuario.username
+        return 'Sistema'

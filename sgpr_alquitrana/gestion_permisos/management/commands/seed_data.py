@@ -19,7 +19,7 @@ class Command(BaseCommand):
 
         for i in range(1,6):
             username = f'user{i}'
-            u, created = User.objects.get_or_create(username=username, defaults={'email':f'{username}@example.com'})
+            u, created = User.objects.get_or_create(username=username, defaults={'email':f'{username}@gmail.com'})
             if created:
                 u.set_password('userpass')
                 u.save()

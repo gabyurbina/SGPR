@@ -1,0 +1,116 @@
+<div class="table-container">
+  <div class="table-responsive">
+    <table class="table custom-table table-hover align-middle m-0">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Trabajador</th>
+          <th>Tipo</th>
+          <th>Estado</th>
+          <th>Fechas</th>
+          <th>Días continuos</th>
+          <th>Días laborables</th>
+          <th>Adjunto</th>
+          <th>Mensaje</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in page_obj %}
+          <tr>
+            <td>{% if es_admin %}{{ s.id }}{% else %}{{ forloop.counter0|add:page_obj.start_index }}{% endif %}</td>
+            <td>{{ s.trabajador }}</td>
+            <td>{{ s.get_tipo_display }}</td>
+            <td>
+              {% if s.estado == 'APROBADO' %}
+                <span class="status-badge status-approved">{{ s.estado }}</span>
+              {% elif s.estado == 'RECHAZADO' %}
+                <span class="status-badge status-rejected">{{ s.estado }}</span>
+              {% else %}
+                <span class="status-badge status-pending">{{ s.estado }}</span>
+              {% endif %}
+            </td>
+            <td>{{ s.fecha_inicio }} - {{ s.fecha_fin }}</td>
+            <td>{{ s.dias_continuos }}</td>
+            <td>{{ s.dias_laborables }}</td>
+            <td>
+              {% if s.adjunto %}
+                <div class="d-flex gap-2 flex-wrap">
+                  <a class="btn btn-sm btn-outline-primary btn-action" href="{{ s.adjunto.url }}" target="_blank" rel="noopener">Ver</a>
+                  <a class="btn btn-sm btn-outline-secondary btn-action" href="{{ s.adjunto.url }}" download="{{ s.adjunto.name }}">Descargar</a>
+                </div>
+              {% else %}
+                <span class="form-text text-muted">Sin adjunto</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="form-text text-muted">{{ s.observaciones_admin|default:'-' }}</span>
+            </td>
+            <td class="text-end">
+              {% if es_admin and s.estado != 'APROBADO' and s.estado != 'RECHAZO' %}
+                {% if s.trabajador.user != request.user %}
+                  {% if is_super_admin or s.trabajador.user.id not in admin_worker_user_ids %}
+                    <div class="d-flex justify-content-end gap-2">
+                      <a class="btn btn-sm btn-outline-success btn-action" href="{% url 'evaluar_solicitud' s.id 'aprobar' %}">Aprobar</a>
+                      <a class="btn btn-sm btn-outline-danger btn-action" href="{% url 'evaluar_solicitud' s.id 'rechazar' %}">Rechazar</a>
+                    </div>
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="d-flex justify-content-end mt-3">
+    <nav aria-label="Paginación solicitudes">
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item">
+            {% if es_admin %}
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_admin={{ page_obj.previous_page_number }}">Anterior</a>
+            {% else %}
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_personal={{ page_obj.previous_page_number }}">Anterior</a>
+            {% endif %}
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+        {% endif %}
+
+        {% for num in paginator.page_range %}
+          {% if num == page_obj.number %}
+            <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+          {% else %}
+            <li class="page-item">
+              {% if es_admin %}
+                <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_admin={{ num }}">{{ num }}</a>
+              {% else %}
+                <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_personal={{ num }}">{{ num }}</a>
+              {% endif %}
+            </li>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+          <li class="page-item">
+            {% if es_admin %}
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_admin={{ page_obj.next_page_number }}">Siguiente</a>
+            {% else %}
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_personal={{ page_obj.next_page_number }}">Siguiente</a>
+            {% endif %}
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+</div>
