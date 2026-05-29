@@ -1,4 +1,5 @@
 <div class="table-container">
+  {% load date_filters %}
   <div class="table-responsive">
     <table class="table custom-table table-hover align-middle m-0">
       <thead>
@@ -30,7 +31,7 @@
                 <span class="status-badge status-pending">{{ s.estado }}</span>
               {% endif %}
             </td>
-            <td>{{ s.fecha_inicio }} - {{ s.fecha_fin }}</td>
+            <td>{{ s.fecha_inicio|format_datetime }} - {{ s.fecha_fin|format_datetime }}</td>
             <td>{{ s.dias_continuos }}</td>
             <td>{{ s.dias_laborables }}</td>
             <td>
@@ -47,7 +48,7 @@
               <span class="form-text text-muted">{{ s.observaciones_admin|default:'-' }}</span>
             </td>
             <td class="text-end">
-              {% if es_admin and s.estado != 'APROBADO' and s.estado != 'RECHAZO' %}
+              {% if es_admin and s.estado == 'PENDIENTE' %}
                 {% if s.trabajador.user != request.user %}
                   {% if is_super_admin or s.trabajador.user.id not in admin_worker_user_ids %}
                     <div class="d-flex justify-content-end gap-2">

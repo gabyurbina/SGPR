@@ -33,6 +33,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 
 from .forms import (
     CedulaAuthenticationForm,
+    CustomPasswordChangeForm,
     EliminarTrabajadorForm,
     EvaluacionSolicitudForm,
     RegistroTrabajadorForm,
@@ -217,7 +218,7 @@ def registro_trabajador(request):
             )
 
             Auditoria.objects.create(
-                usuario=user,
+                usuario=request.user if request.user.is_authenticated else user,
                 accion='REGISTRO',
                 tabla_afectada='Trabajador',
                 registro_id=trabajador.id,
@@ -227,14 +228,19 @@ def registro_trabajador(request):
                 ),
             )
 
-            messages.success(request, 'Trabajador registrado correctamente. Inicia sesión con la contraseña por defecto y cámbiala en tu primer acceso.')
+            show_password = settings.DEBUG or settings.SHOW_DEFAULT_PASSWORD_ON_REGISTER
+            messages.success(
+                request,
+                'Trabajador registrado correctamente. Se ha creado la cuenta; el trabajador debe establecer su contraseña en el primer acceso.',
+            )
             return render(
                 request,
                 'registro_exitoso.html',
                 {
                     'username': username,
-                    'password': settings.DEFAULT_PASSWORD,
                     'from_admin': request.user.is_authenticated and es_gestion_humana(request.user),
+                    'show_password': show_password,
+                    'password': password if show_password else None,
                 },
             )
     else:
@@ -308,7 +314,7 @@ def api_registro_trabajador(request):
     )
 
     Auditoria.objects.create(
-        usuario=user,
+        usuario=request.user if request.user.is_authenticated else user,
         accion='REGISTRO',
         tabla_afectada='Trabajador',
         registro_id=trabajador.id,
@@ -436,10 +442,7 @@ def editar_trabajador(request, trabajador_id):
                     f"Datos actualizados para {trabajador.user.get_full_name()} (Cédula: {trabajador.cedula})."
                 ),
             )
-            if form.cleaned_data.get('password'):
-                messages.success(request, 'Datos guardados. La contraseña del trabajador se ha cambiado correctamente.')
-            else:
-                messages.success(request, 'Datos del trabajador actualizados correctamente.')
+            messages.success(request, 'Datos del trabajador actualizados correctamente.')
             return redirect('lista_trabajadores')
     else:
         form = TrabajadorEditForm(instance=trabajador)
@@ -468,7 +471,7 @@ def restablecer_contrasena(request, trabajador_id):
         )
         messages.success(
             request,
-            f"La contraseña de {trabajador.user.username} se ha restablecido a '{settings.DEFAULT_PASSWORD}'. El trabajador debe cambiarla en su primer acceso.",
+            f"La contraseña de {trabajador.user.username} ha sido restablecida. El trabajador deberá cambiarla en su primer acceso.",
         )
         return redirect('lista_trabajadores')
 
@@ -479,7 +482,7 @@ def restablecer_contrasena(request, trabajador_id):
 def cambiar_contrasena(request):
     """Permite al usuario cambiar su contraseña y desactiva la obligación inicial."""
     if request.method == 'POST':
-        form = PasswordChangeForm(request.user, request.POST)
+        form = CustomPasswordChangeForm(request.user, request.POST)
         if form.is_valid():
             user = form.save()
             update_session_auth_hash(request, user)
@@ -492,11 +495,15 @@ def cambiar_contrasena(request):
                 accion='CAMBIO_CONTRASENA',
                 tabla_afectada='User',
                 registro_id=user.id,
-                detalles='El usuario actualizó su contraseña.',
+                detalles=(
+                    f"Contraseña actualizada para {user.get_full_name() or user.username}."
+                ),
             )
+            from django.contrib import messages
+            messages.success(request, 'Su contraseña fue cambiada con éxito.')
             return redirect('dashboard')
     else:
-        form = PasswordChangeForm(request.user)
+        form = CustomPasswordChangeForm(request.user)
 
     return render(request, 'cambiar_contrasena.html', {'form': form})
 
@@ -642,7 +649,11 @@ def evaluar_solicitud(request, solicitud_id, accion):
                 accion=accion.upper(),
                 tabla_afectada='Solicitud',
                 registro_id=solicitud.id,
-                detalles=f"Solicitud ID {solicitud.id} cambiada a estado {solicitud.estado}. Obs: {observaciones}",
+                detalles=(
+                    f"Solicitud ID {solicitud.id} de {solicitud.trabajador.user.get_full_name()} "
+                    f"({solicitud.trabajador.cedula}) {solicitud.estado.lower()} por {request.user.get_full_name() or request.user.username}. "
+                    f"Observaciones: {observaciones}"
+                ),
             )
             return redirect('dashboard')
     else:
@@ -763,7 +774,7 @@ def exportar_auditoria_excel(request):
             log.accion,
             log.tabla_afectada,
             log.registro_id,
-            log.detalles,
+            log.detalles_legibles,
         ])
 
     for row in hoja.iter_rows(min_row=4, max_row=hoja.max_row, min_col=1, max_col=6):
@@ -873,7 +884,7 @@ def exportar_auditoria_pdf(request):
     )
 
     for log in logs:
-        detalles = Paragraph(str(log.detalles), cell_style)
+        detalles = Paragraph(str(log.detalles_legibles), cell_style)
         data.append([
             Paragraph(format_datetime(log.fecha_hora), cell_style),
             Paragraph(log.usuario_nombre_completo, cell_style),

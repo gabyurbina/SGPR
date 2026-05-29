@@ -28,6 +28,12 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
 # En producción, configure DEFAULT_PASSWORD en el entorno y no la deje en el código.
 DEFAULT_PASSWORD = os.environ.get('DEFAULT_PASSWORD', 'SGPR2026*')
 
+# Mostrar la contraseña por defecto en la página de registro solo si
+# estamos en DEBUG o si la variable de entorno lo permite explícitamente.
+SHOW_DEFAULT_PASSWORD_ON_REGISTER = os.environ.get(
+    'SHOW_DEFAULT_PASSWORD_ON_REGISTER', 'False'
+) == 'True'
+
 # Hosts permitidos (en producción configure la URL/host real)
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1').split()
 
@@ -39,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # 'corsheaders' se añade condicionalmente más abajo si está instalado
     'gestion_permisos',
 ]
 
@@ -52,6 +59,7 @@ MIDDLEWARE = [
     'gestion_permisos.middleware.PasswordResetRequiredMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # 'corsheaders.middleware.CorsMiddleware' se insertará condicionalmente más abajo
 ]
 
 ROOT_URLCONF = 'sgpr_alquitrana.urls'
@@ -121,3 +129,61 @@ if EMAIL_HOST:
 else:
     # En entornos sin servidor SMTP configurado, imprimimos correos en consola.
     EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Seguridad adicional (ajustar en producción vía variables de entorno)
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'False') == 'True'
+CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'False') == 'True'
+SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'False') == 'True'
+SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', 0))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get('SECURE_HSTS_INCLUDE_SUBDOMAINS', 'False') == 'True'
+SECURE_HSTS_PRELOAD = os.environ.get('SECURE_HSTS_PRELOAD', 'False') == 'True'
+
+# X-Content-Type-Options and X-Frame options
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = 'DENY'
+
+# Requerir clave secreta en producción
+if not DEBUG and (not SECRET_KEY or SECRET_KEY == 'cambiar-esta-clave-por-una-segura'):
+    raise RuntimeError('DJANGO_SECRET_KEY no está configurada correctamente para producción')
+
+# Password hashing: permitir Argon2 si está instalado (mejor resistencia)
+USE_ARGON2 = os.environ.get('USE_ARGON2', 'False') == 'True'
+if USE_ARGON2:
+    PASSWORD_HASHERS = [
+        'django.contrib.auth.hashers.Argon2PasswordHasher',
+        'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+        'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
+    ]
+
+# CORS / Acceso remoto: en producción configure hosts reales en DJANGO_ALLOWED_HOSTS
+# Para permitir acceso desde internet ponga la(s) URL(s) o dominios en la variable de entorno.
+CORS_ALLOW_ALL_ORIGINS = os.environ.get('CORS_ALLOW_ALL_ORIGINS', 'False') == 'True'
+cors_allowed = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if cors_allowed:
+    # valores separados por comas
+    CORS_ALLOWED_ORIGINS = [x.strip() for x in cors_allowed.split(',') if x.strip()]
+else:
+    CORS_ALLOWED_ORIGINS = []
+
+# Intentar añadir django-cors-headers de forma segura. Si no está instalado,
+# no abortamos el inicio del servidor: se trata de una funcionalidad optativa
+# para permitir CORS en despliegues que lo requieran.
+try:
+    import importlib
+    if importlib.util.find_spec('corsheaders') is not None:
+        # Añadir a INSTALLED_APPS si no está presente
+        if 'corsheaders' not in INSTALLED_APPS:
+            INSTALLED_APPS.insert(0, 'corsheaders')
+        # Insertar CorsMiddleware justo después de SessionMiddleware si no está
+        cors_mw = 'corsheaders.middleware.CorsMiddleware'
+        if cors_mw not in MIDDLEWARE:
+            try:
+                session_index = MIDDLEWARE.index('django.contrib.sessions.middleware.SessionMiddleware')
+                MIDDLEWARE.insert(session_index + 1, cors_mw)
+            except ValueError:
+                # si no existe SessionMiddleware, añadir al inicio
+                MIDDLEWARE.insert(0, cors_mw)
+except Exception:
+    # No hacemos nada; si falta el paquete, el servidor seguirá funcionando.
+    pass
+

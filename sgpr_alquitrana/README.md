@@ -63,35 +63,17 @@ El proyecto carga algunos valores desde variables de entorno. Los valores predet
 - `DATABASE_URL`: si se define, el proyecto usará esa base de datos en lugar de SQLite.
 - `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_BACKEND`: para envío de correos.
 - `DEFAULT_FROM_EMAIL`: emisor del correo.
+- `FERNET_KEY`: clave para cifrado y descifrado de campos sensibles en la base de datos (`Auditoria.detalles`, `Solicitud.motivo`, `Trabajador.cedula_encrypted`).
+
+Para generar una clave segura, usa:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
 
 Si `EMAIL_HOST` no está configurado, el sistema usa el backend de consola (`console.EmailBackend`) y el correo se imprimirá en la terminal en lugar de enviarse realmente.
 
 El proyecto también carga automáticamente un archivo `.env` en la raíz del proyecto si existe.
-
----
-
-## Configurar SMTP real
-
-Para que los correos lleguen efectivamente a los trabajadores, configura estas variables de entorno en tu `.env` o en el entorno del servidor:
-
-```env
-EMAIL_HOST=smtp.tuservidor.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=tu_usuario_smtp@tu_dominio.com
-EMAIL_HOST_PASSWORD=tu_contraseña_smtp
-DEFAULT_FROM_EMAIL="SGPR <no-reply@tu_dominio.com>"
-```
-
-- `EMAIL_HOST`: servidor SMTP de tu proveedor.
-- `EMAIL_PORT`: normalmente `587` para TLS.
-- `EMAIL_USE_TLS`: `True` para StartTLS.
-- `EMAIL_HOST_USER` y `EMAIL_HOST_PASSWORD`: credenciales SMTP.
-- `DEFAULT_FROM_EMAIL`: dirección remitente que verá el destinatario.
-
-Si usas Gmail/Google Workspace, habilita una contraseña de aplicación y usa `EMAIL_PORT=587` con `EMAIL_USE_TLS=True`.
-
-Después de configurar estas variables, reinicia el servidor Django para que se apliquen.
 
 ---
 
@@ -157,13 +139,13 @@ Después de configurar estas variables, reinicia el servidor Django para que se 
 | `/trabajadores/descargar/pdf/` | Exportar trabajadores a PDF |
 | `/auditoria/descargar/xlsx/` | Exportar auditoría a Excel |
 | `/auditoria/descargar/pdf/` | Exportar auditoría a PDF |
-| `/api/trabajadores/registro/` | API JSON para registrar un trabajador y enviar notificación al correo |
+| `/api/trabajadores/registro/` | API JSON para registrar un trabajador |
 
 ---
 
 ## API de registro de trabajadores
 
-La aplicación ahora expone una API simple para crear trabajadores desde un cliente JSON. Esta API registra al trabajador, crea el usuario `username=cedula`, utiliza `DEFAULT_PASSWORD` como contraseña inicial y envía automáticamente una notificación por correo con formato SGPR.
+La aplicación ahora expone una API simple para crear trabajadores desde un cliente JSON. Esta API registra al trabajador, crea el usuario `username=cedula`, utiliza `DEFAULT_PASSWORD` como contraseña inicial y la muestra en pantalla.
 
 - Método: `POST`
 - URL: `/api/trabajadores/registro/`
@@ -210,6 +192,42 @@ Ejemplo:
 - El campo `adjunto` se guarda en `media/justificantes/`.
 - El middleware obliga al primer cambio de contraseña para los trabajadores que reciben contraseña por defecto.
 - El sistema usa SQLite local por defecto, pero puede apuntar a PostgreSQL con `DATABASE_URL`.
+
+---
+
+## Seguridad y despliegue en producción
+
+Recomendaciones mínimas para asegurar la aplicación antes de exponerla a Internet:
+
+- Coloca en variables de entorno (no en el código) las claves sensibles:
+   - `DJANGO_SECRET_KEY` (obligatorio en producción)
+   - `DATABASE_URL` (usar Postgres/managed DB en producción)
+   - `EMAIL_HOST` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` si usas SMTP
+   - `FERNET_KEY` (clave para cifrado de campos sensibles)
+
+   Nota: por seguridad el sistema no muestra contraseñas por defecto en pantalla ni en mensajes. Configure `DEFAULT_PASSWORD` solo para entornos controlados o prefiera generar contraseñas temporales y notificar mediante correo con enlace de restablecimiento.
+
+- En `requirements.txt` se añadieron `cryptography` (cifrado de campos) y `argon2-cffi` (hasher opcional). Para usar Argon2, exporta `USE_ARGON2=True`.
+
+- En `sgpr_alquitrana/settings.py` hay variables que debes ajustar en producción:
+   - `DEBUG=False`
+   - `DJANGO_ALLOWED_HOSTS` con los dominios/hosts donde se desplegará
+   - `SESSION_COOKIE_SECURE=True`, `CSRF_COOKIE_SECURE=True`, `SECURE_SSL_REDIRECT=True`
+   - `SECURE_HSTS_SECONDS` (ej. `31536000`) y `SECURE_HSTS_INCLUDE_SUBDOMAINS=True` cuando uses HTTPS
+
+- Genera una `FERNET_KEY` segura con:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Luego exporta la clave en la máquina/contendor que ejecute la app.
+
+- Usa HTTPS para exponer la app (Nginx + Gunicorn o servicios administrados). No expongas directamente `runserver`.
+
+- Recomendación de despliegue rápido con Docker Compose: configura variables en un `.env` y usa `docker-compose up --build`.
+
+---
 
 ---
 

@@ -9,10 +9,14 @@
         Tu usuario ha sido creado correctamente.
       </div>
       <p class="mt-3">
-        Usuario: <strong>{{ username }}</strong><br>
-        Contraseña inicial: <strong>{{ password }}</strong>
+        Usuario: <strong>{{ username }}</strong>
       </p>
-      <p class="auth-note">La contraseña mostrada es la contraseña por defecto. Por seguridad, cámbiala en tu primer acceso.</p>
+      {% if show_password and password %}
+        <p class="mt-3">
+          Contraseña temporal: <strong>{{ password }}</strong>
+        </p>
+      {% endif %}
+      <p class="auth-note">La cuenta fue creada correctamente. El trabajador debe establecer su contraseña utilizando la opción de restablecer/recuperar contraseña o al iniciar sesión por primera vez si recibe instrucciones por correo.</p>
       {% if from_admin %}
         <p class="auth-note text-danger mt-2">Si deseas iniciar sesión con este trabajador, primero debes cerrar tu sesión de administrador.</p>
         <a class="btn btn-secondary-custom mt-3 disabled" href="{% url 'login' %}" tabindex="-1" aria-disabled="true">Ingresar</a>

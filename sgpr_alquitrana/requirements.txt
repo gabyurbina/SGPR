@@ -5,3 +5,6 @@ dj-database-url
 whitenoise
 openpyxl
 reportlab
+cryptography
+argon2-cffi
+django-cors-headers

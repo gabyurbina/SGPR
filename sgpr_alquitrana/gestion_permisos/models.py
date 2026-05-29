@@ -5,6 +5,8 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 import os
+from .utils import encrypt_text, decrypt_text
+from .fields import EncryptedTextField
 
 
 def validar_extension_archivo(value):
@@ -21,12 +23,24 @@ class Trabajador(models.Model):
     """Información del trabajador vinculada a un `User` de Django."""
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     cedula = models.CharField(max_length=15, unique=True)
+    # copia cifrada para almacenamiento a nivel de base de datos (no usada para login)
+    cedula_encrypted = models.TextField(null=True, blank=True, editable=False)
     cargo = models.CharField(max_length=100)
     departamento = models.CharField(max_length=100, default='', verbose_name='Ubicación Administrativa')
     password_reset_required = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.get_full_name()} - {self.cedula}"
+
+    def save(self, *args, **kwargs):
+        # Mantener copia cifrada de la cédula para almacenamiento seguro
+        try:
+            if self.cedula:
+                self.cedula_encrypted = encrypt_text(self.cedula)
+        except Exception:
+            # en caso de fallo, no bloquear el guardado
+            pass
+        super().save(*args, **kwargs)
 
 
 class Solicitud(models.Model):
@@ -50,7 +64,8 @@ class Solicitud(models.Model):
     tipo = models.CharField(max_length=30, choices=TIPOS)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
-    motivo = models.TextField()
+    # Campo motivo cifrado (se mostrará desencriptado al usar el ORM)
+    motivo = EncryptedTextField()
     adjunto = models.FileField(upload_to='justificantes/', validators=[validar_extension_archivo], null=True, blank=True)
     dias_continuos = models.IntegerField(default=0)
     dias_laborables = models.IntegerField(default=0)
@@ -140,7 +155,8 @@ class Auditoria(models.Model):
     tabla_afectada = models.CharField(max_length=100)
     registro_id = models.IntegerField()
     fecha_hora = models.DateTimeField(auto_now_add=True)
-    detalles = models.TextField()
+    detalles = EncryptedTextField()
+
 
     class Meta:
         verbose_name_plural = "Registros de Auditoría"
@@ -149,9 +165,30 @@ class Auditoria(models.Model):
     def __str__(self):
         return f"{self.fecha_hora} - {self.usuario_nombre_completo} - {self.accion}"
 
+    def save(self, *args, **kwargs):
+        if self.usuario and self.detalles:
+            usuario_nombre = self.usuario.get_full_name().strip() or self.usuario.username
+            actor_details = f"Realizado por: {usuario_nombre} ({self.usuario.username})"
+            if actor_details not in self.detalles:
+                detalles_text = self.detalles.rstrip('.')
+                self.detalles = f"{detalles_text} — {actor_details}"
+        super().save(*args, **kwargs)
+
     @property
     def usuario_nombre_completo(self):
         if self.usuario:
             full_name = self.usuario.get_full_name().strip()
             return full_name if full_name else self.usuario.username
         return 'Sistema'
+
+    @property
+    def detalles_legibles(self):
+        if not self.detalles:
+            return ''
+        detalles = str(self.detalles)
+        detalles = detalles.replace(' - ', '. ')
+        detalles = detalles.replace(' -', '.').replace('- ', '. ')
+        detalles = detalles.replace('-', '. ')
+        while '.  ' in detalles:
+            detalles = detalles.replace('.  ', '. ')
+        return detalles.strip()

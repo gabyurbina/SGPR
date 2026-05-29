@@ -5,9 +5,37 @@ import os
 
 from django import forms
 from django.core.validators import RegexValidator
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordChangeForm
 from django.contrib.auth.models import User
 from .models import Solicitud, Trabajador
+
+
+class CustomPasswordChangeForm(PasswordChangeForm):
+    old_password = forms.CharField(
+        label='Contraseña actual',
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'autocomplete': 'current-password',
+            'class': 'form-control',
+        }),
+    )
+    new_password1 = forms.CharField(
+        label='Nueva contraseña',
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'autocomplete': 'new-password',
+            'class': 'form-control',
+        }),
+        help_text=PasswordChangeForm.base_fields['new_password1'].help_text,
+    )
+    new_password2 = forms.CharField(
+        label='Confirmar nueva contraseña',
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'autocomplete': 'new-password',
+            'class': 'form-control',
+        }),
+    )
 
 
 class CedulaAuthenticationForm(AuthenticationForm):
@@ -120,12 +148,6 @@ class TrabajadorEditForm(forms.ModelForm):
     nombres = forms.CharField(label='Nombres', widget=forms.TextInput(attrs={'class': 'form-control'}))
     apellidos = forms.CharField(label='Apellidos', widget=forms.TextInput(attrs={'class': 'form-control'}))
     email = forms.EmailField(label='Correo electrónico', widget=forms.EmailInput(attrs={'class': 'form-control'}), required=False)
-    password = forms.CharField(
-        label='Contraseña',
-        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
-        required=False,
-        help_text='Deja vacío si no quieres cambiar la contraseña.',
-    )
 
     class Meta:
         model = Trabajador
@@ -166,10 +188,6 @@ class TrabajadorEditForm(forms.ModelForm):
         correo = self.cleaned_data.get('email')
         if correo:
             trabajador.user.email = correo
-        password = self.cleaned_data.get('password')
-        if password:
-            trabajador.user.set_password(password)
-            trabajador.password_reset_required = False
         if commit:
             trabajador.user.save()
             trabajador.save()
