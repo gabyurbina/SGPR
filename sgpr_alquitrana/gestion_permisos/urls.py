@@ -20,6 +20,10 @@ urlpatterns = [
     path('auditoria/', views.reporte_auditoria, name='reporte_auditoria'),
     path('auditoria/descargar/xlsx/', views.exportar_auditoria_excel, name='exportar_auditoria_excel'),
     path('auditoria/descargar/pdf/', views.exportar_auditoria_pdf, name='exportar_auditoria_pdf'),
+    path('estadisticas/', views.estadisticas, name='estadisticas'),
+    path('estadisticas/data/', views.estadisticas_data, name='estadisticas_data'),
+    path('estadisticas/descargar/xlsx/', views.exportar_estadisticas_excel, name='exportar_estadisticas_excel'),
+    path('estadisticas/descargar/pdf/', views.exportar_estadisticas_pdf, name='exportar_estadisticas_pdf'),
     path('trabajadores/descargar/xlsx/', views.exportar_trabajadores_excel, name='exportar_trabajadores_excel'),
     path('trabajadores/descargar/pdf/', views.exportar_trabajadores_pdf, name='exportar_trabajadores_pdf'),
 ]

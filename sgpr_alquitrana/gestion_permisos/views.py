@@ -1197,3 +1197,203 @@ def logout_view(request):
     """Cerrar sesión y redirigir al login con next=/"""
     logout(request)
     return redirect('/login/?next=/')
+
+
+# --------------------- Estadísticas ---------------------
+@login_required
+@user_passes_test(es_gestion_humana)
+def estadisticas(request):
+    """Página de estadísticas con filtros y selector de tipo de gráfico."""
+    # opciones y valores por defecto
+    return render(request, 'estadisticas.html', {})
+
+
+@login_required
+@user_passes_test(es_gestion_humana)
+def estadisticas_data(request):
+    """Devuelve conteos agregados según filtros (JSON)."""
+    q = request.GET.get('q', '').strip()
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+
+    qs = Solicitud.objects.all()
+    if q:
+        qs = qs.filter(trabajador__cedula__icontains=q)
+    if fecha_inicio:
+        try:
+            from datetime import datetime
+            fi = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            qs = qs.filter(fecha_creacion__date__gte=fi.date())
+        except Exception:
+            pass
+    if fecha_fin:
+        try:
+            from datetime import datetime
+            ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            qs = qs.filter(fecha_creacion__date__lte=ff.date())
+        except Exception:
+            pass
+
+    total = qs.count()
+    aprobadas = qs.filter(estado='APROBADO').count()
+    rechazadas = qs.filter(estado='RECHAZO').count()
+    pendientes = qs.filter(estado='PENDIENTE').count()
+
+    labels = ['Total', 'Aprobadas', 'Rechazadas', 'Pendientes']
+    values = [total, aprobadas, rechazadas, pendientes]
+    return JsonResponse({'labels': labels, 'values': values})
+
+
+@login_required
+@user_passes_test(es_gestion_humana)
+def exportar_estadisticas_excel(request):
+    """Exportar estadísticas a Excel (incluye imagen del gráfico si matplotlib está disponible)."""
+    q = request.GET.get('q', '').strip()
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+
+    qs = Solicitud.objects.all()
+    if q:
+        qs = qs.filter(trabajador__cedula__icontains=q)
+    if fecha_inicio:
+        try:
+            from datetime import datetime
+            fi = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            qs = qs.filter(fecha_creacion__date__gte=fi.date())
+        except Exception:
+            pass
+    if fecha_fin:
+        try:
+            from datetime import datetime
+            ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            qs = qs.filter(fecha_creacion__date__lte=ff.date())
+        except Exception:
+            pass
+
+    total = qs.count()
+    aprobadas = qs.filter(estado='APROBADO').count()
+    rechazadas = qs.filter(estado='RECHAZO').count()
+    pendientes = qs.filter(estado='PENDIENTE').count()
+
+    # Crear workbook
+    workbook = Workbook()
+    hoja = workbook.active
+    hoja.title = 'Estadísticas'
+
+    # Encabezado de metadatos
+    now = datetime.datetime.now()
+    generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM','a.m.').replace('PM','p.m.')
+    add_excel_header_image(hoja, workbook)
+    hoja.append(['Fecha de elaboración:', '', '', '', generated_at])
+    hoja.append([])
+
+    # Datos
+    hoja.append(['Métrica', 'Valor'])
+    hoja.append(['Total solicitudes', total])
+    hoja.append(['Aprobadas', aprobadas])
+    hoja.append(['Rechazadas', rechazadas])
+    hoja.append(['Pendientes', pendientes])
+
+    # Intentar generar gráfico como imagen con matplotlib y añadirlo
+    try:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6,3))
+        ax.pie([aprobadas, rechazadas, pendientes], labels=['Aprobadas','Rechazadas','Pendientes'], autopct='%1.1f%%')
+        imgdata = BytesIO()
+        fig.savefig(imgdata, format='png', bbox_inches='tight')
+        plt.close(fig)
+        imgdata.seek(0)
+        from openpyxl.drawing.image import Image as ExcelImage
+        img = ExcelImage(imgdata)
+        hoja.add_image(img, 'D2')
+    except Exception:
+        pass
+
+    salida = BytesIO()
+    workbook.save(salida)
+    salida.seek(0)
+    timestamp = now.strftime('%Y%m%d_%I%M%S')
+    response = HttpResponse(salida.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename=estadisticas_{timestamp}.xlsx'
+    return response
+
+
+@login_required
+@user_passes_test(es_gestion_humana)
+def exportar_estadisticas_pdf(request):
+    """Exportar estadísticas a PDF (incrusta imagen del gráfico)."""
+    q = request.GET.get('q', '').strip()
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+
+    qs = Solicitud.objects.all()
+    if q:
+        qs = qs.filter(trabajador__cedula__icontains=q)
+    if fecha_inicio:
+        try:
+            from datetime import datetime
+            fi = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            qs = qs.filter(fecha_creacion__date__gte=fi.date())
+        except Exception:
+            pass
+    if fecha_fin:
+        try:
+            from datetime import datetime
+            ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            qs = qs.filter(fecha_creacion__date__lte=ff.date())
+        except Exception:
+            pass
+
+    total = qs.count()
+    aprobadas = qs.filter(estado='APROBADO').count()
+    rechazadas = qs.filter(estado='RECHAZO').count()
+    pendientes = qs.filter(estado='PENDIENTE').count()
+
+    # Generar imagen con matplotlib
+    imgdata = None
+    try:
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6,3))
+        ax.bar(['Aprobadas','Rechazadas','Pendientes'], [aprobadas, rechazadas, pendientes], color=['#1cc88a','#e74a3b','#f6c23e'])
+        imgbuf = BytesIO()
+        fig.savefig(imgbuf, format='png', bbox_inches='tight')
+        plt.close(fig)
+        imgbuf.seek(0)
+        imgdata = imgbuf
+    except Exception:
+        imgdata = None
+
+    # Crear PDF
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=90, bottomMargin=30)
+    styles = getSampleStyleSheet()
+    story = []
+    doc.report_title = 'Estadísticas de Solicitudes'
+    doc.generated_at = datetime.datetime.now().strftime('%d-%m-%Y %I:%M:%S %p').replace('AM','a.m.').replace('PM','p.m.')
+
+    # Añadir tabla de datos
+    data = [['Métrica','Valor'], ['Total solicitudes', total], ['Aprobadas', aprobadas], ['Rechazadas', rechazadas], ['Pendientes', pendientes]]
+    table = Table(data, colWidths=[200,100])
+    story.append(Spacer(1,12))
+    if imgdata:
+        try:
+            image_reader = ImageReader(imgdata)
+            img = ReportLabImage(imgdata, width=420, height=200)
+            story.append(img)
+            story.append(Spacer(1,12))
+        except Exception:
+            pass
+    story.append(table)
+    doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
+    buffer.seek(0)
+    timestamp = datetime.datetime.now().strftime('%Y%m%d_%I%M%S')
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename=estadisticas_{timestamp}.pdf'
+    return response
+
+# ---------------------------------------------------------
+

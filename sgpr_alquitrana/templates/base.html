@@ -90,6 +90,9 @@
                     <a href="{% url 'reporte_auditoria' %}" class="nav-link {% if request.resolver_match and request.resolver_match.url_name == 'reporte_auditoria' %}active{% endif %}">
                         <i class="fa-solid fa-clock-rotate-left"></i> Auditoría
                     </a>
+                    <a href="{% url 'estadisticas' %}" class="nav-link {% if request.resolver_match and request.resolver_match.url_name == 'estadisticas' %}active{% endif %}">
+                        <i class="fa-solid fa-chart-pie"></i> Estadísticas
+                    </a>
                     {% endif %}
                     <a href="{% url 'configuracion' %}" class="nav-link {% if request.resolver_match and request.resolver_match.url_name == 'configuracion' %}active{% endif %}">
                         <i class="fa-solid fa-gear"></i> Configuración
