@@ -22,4 +22,7 @@ urlpatterns = [
     path('auditoria/descargar/pdf/', views.exportar_auditoria_pdf, name='exportar_auditoria_pdf'),
     path('trabajadores/descargar/xlsx/', views.exportar_trabajadores_excel, name='exportar_trabajadores_excel'),
     path('trabajadores/descargar/pdf/', views.exportar_trabajadores_pdf, name='exportar_trabajadores_pdf'),
+    path('estadisticas/', views.vista_estadisticas, name='vista_estadisticas'),
+    path('estadisticas/descargar/xlsx/', views.exportar_estadisticas_excel, name='exportar_estadisticas_excel'),
+    path('estadisticas/descargar/pdf/', views.exportar_estadisticas_pdf, name='exportar_estadisticas_pdf'),
 ]
