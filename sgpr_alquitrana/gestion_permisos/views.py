@@ -62,10 +62,51 @@ def format_datetime(dt):
 
 
 def agregar_numeracion_paginas(canvas, doc):
-    """Dibuja el número de página en el pie de página de los PDF."""
+    """Dibuja encabezado (imagen, título y fecha) igual que la página 1 en todas las páginas, y número de página en el pie."""
     canvas.saveState()
-    canvas.setFont('Helvetica', 8)
     width, height = doc.pagesize
+
+    # Encabezado: imagen en la esquina superior izquierda con tamaño máximo igual al de la primera página
+    encabezado_path = get_encabezado_path()
+    draw_h = 0
+    if encabezado_path:
+        try:
+            image_reader = ImageReader(encabezado_path)
+            orig_w, orig_h = image_reader.getSize()
+            max_w, max_h = 420, 100
+            scale = min(max_w / orig_w, max_h / orig_h, 1)
+            draw_w = orig_w * scale
+            draw_h = orig_h * scale
+            x = doc.leftMargin
+            y = height - draw_h - 20
+            canvas.drawImage(encabezado_path, x, y, width=draw_w, height=draw_h, preserveAspectRatio=True, mask='auto')
+        except Exception:
+            draw_h = 0
+
+    # Título centrado debajo del encabezado (mismo estilo que la primera página)
+    title = getattr(doc, 'report_title', None)
+    if title:
+        canvas.setFont('Helvetica-Bold', 16)
+        # Si hubo imagen, colocar título justo debajo; si no, usar un offset desde el tope
+        if draw_h > 0:
+            title_y = height - draw_h - 30
+        else:
+            title_y = height - 30
+        canvas.drawCentredString(width / 2.0, title_y, title)
+
+    # Fecha/datos a la derecha del título (misma línea que el título)
+    gen = getattr(doc, 'generated_at', None)
+    if gen:
+        canvas.setFont('Helvetica', 9)
+        # Ajustar ligeramente la posición vertical para alinearlo con el título
+        if draw_h > 0:
+            date_y = height - draw_h - 30
+        else:
+            date_y = height - 30
+        canvas.drawRightString(width - doc.rightMargin, date_y, gen)
+
+    # Número de página en el pie
+    canvas.setFont('Helvetica', 8)
     page_number_text = f'Página {canvas.getPageNumber()}'
     canvas.drawRightString(width - doc.rightMargin, 15, page_number_text)
     canvas.restoreState()
@@ -81,6 +122,7 @@ def dashboard(request):
     """Panel principal: lista de solicitudes según el rol del usuario."""
     query = request.GET.get('q', '').strip()
     filtro_estado = request.GET.get('estado', 'TODOS')
+    active_tab = request.GET.get('tab', 'personal')
 
     is_worker = Trabajador.objects.filter(user=request.user).exists()
 
@@ -168,6 +210,7 @@ def dashboard(request):
             'is_worker': is_worker,
             'is_super_admin': request.user.username == 'admin',
             'admin_worker_user_ids': admin_worker_user_ids,
+            'active_tab': active_tab,
             'query': query,
             'filtro_estado': filtro_estado,
             'estado_options': [
@@ -746,8 +789,22 @@ def add_pdf_header_image(documento, ancho, alto):
 @login_required
 @user_passes_test(es_gestion_humana)
 def exportar_auditoria_excel(request):
-    """Exporta el reporte de auditoría a Excel."""
-    logs = Auditoria.objects.all()
+    """Exporta el reporte de auditoría a Excel (respeta filtros de consulta)."""
+    query = request.GET.get('q', '').strip()
+    logs = Auditoria.objects.select_related('usuario').all()
+    if query:
+        q_filter = (
+            Q(usuario__username__icontains=query)
+            | Q(usuario__first_name__icontains=query)
+            | Q(usuario__last_name__icontains=query)
+            | Q(accion__icontains=query)
+            | Q(tabla_afectada__icontains=query)
+            | Q(detalles__icontains=query)
+        )
+        if query.isdigit():
+            q_filter = q_filter | Q(registro_id=int(query))
+        logs = logs.filter(q_filter)
+
     now = datetime.datetime.now()
     generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM', 'a.m.').replace('PM', 'p.m.')
     timestamp = now.strftime('%Y%m%d_%I%M%S')
@@ -805,14 +862,28 @@ def exportar_auditoria_excel(request):
 @login_required
 @user_passes_test(es_gestion_humana)
 def exportar_auditoria_pdf(request):
-    """Exporta el reporte de auditoría a PDF."""
-    logs = Auditoria.objects.all()
+    """Exporta el reporte de auditoría a PDF (respeta filtros de consulta)."""
+    query = request.GET.get('q', '').strip()
+    logs = Auditoria.objects.select_related('usuario').all()
+    if query:
+        q_filter = (
+            Q(usuario__username__icontains=query)
+            | Q(usuario__first_name__icontains=query)
+            | Q(usuario__last_name__icontains=query)
+            | Q(accion__icontains=query)
+            | Q(tabla_afectada__icontains=query)
+            | Q(detalles__icontains=query)
+        )
+        if query.isdigit():
+            q_filter = q_filter | Q(registro_id=int(query))
+        logs = logs.filter(q_filter)
+
     now = datetime.datetime.now()
     generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM', 'a.m.').replace('PM', 'p.m.')
     timestamp = now.strftime('%Y%m%d_%I%M%S')
 
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=90, bottomMargin=30)
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'Title',
@@ -830,19 +901,6 @@ def exportar_auditoria_pdf(request):
     )
 
     story = []
-    encabezado_path = get_encabezado_path()
-    if encabezado_path:
-        try:
-            image_reader = ImageReader(encabezado_path)
-            orig_w, orig_h = image_reader.getSize()
-            max_width, max_height = 420, 100
-            scale = min(max_width / orig_w, max_height / orig_h, 1)
-            img = ReportLabImage(encabezado_path, width=orig_w * scale, height=orig_h * scale)
-        except Exception:
-            img = ReportLabImage(encabezado_path, width=420, height=100)
-        img.hAlign = 'LEFT'
-        story.append(img)
-        story.append(Spacer(1, 10))
 
     right_style = ParagraphStyle(
         'Right',
@@ -852,10 +910,7 @@ def exportar_auditoria_pdf(request):
         leading=12,
         spaceAfter=12,
     )
-    story.append(Paragraph('Reporte de Auditoría', title_style))
-    story.append(Paragraph(f'Fecha de descarga: {generated_at}', right_style))
-    story.append(Spacer(1, 12))
-
+    
     header_style = ParagraphStyle(
         'Header',
         parent=styles['Normal'],
@@ -877,7 +932,7 @@ def exportar_auditoria_pdf(request):
     cell_style = ParagraphStyle(
         'Cell',
         parent=styles['Normal'],
-        alignment=4,
+        alignment=0,
         fontSize=9,
         leading=12,
         spaceAfter=4,
@@ -910,6 +965,9 @@ def exportar_auditoria_pdf(request):
     ]))
 
     story.append(table)
+    # Set metadata so el callback pueda dibujar título y fecha en cada página
+    doc.report_title = 'Reporte de Auditoría'
+    doc.generated_at = generated_at
     doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
     buffer.seek(0)
 
@@ -921,8 +979,23 @@ def exportar_auditoria_pdf(request):
 @login_required
 @user_passes_test(es_gestion_humana)
 def exportar_trabajadores_excel(request):
-    """Exporta la lista de trabajadores a Excel."""
+    """Exporta la lista de trabajadores a Excel (respeta filtros de consulta)."""
+    query = request.GET.get('q', '').strip()
+    filtro_estado = request.GET.get('estado', 'TODOS')
     trabajadores = Trabajador.objects.select_related('user').order_by('user__last_name')
+    if filtro_estado == 'OBLIGATORIO':
+        trabajadores = trabajadores.filter(password_reset_required=True)
+    elif filtro_estado == 'COMPLETO':
+        trabajadores = trabajadores.filter(password_reset_required=False)
+    if query:
+        trabajadores = trabajadores.filter(
+            Q(cedula__icontains=query)
+            | Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(user__email__icontains=query)
+            | Q(cargo__icontains=query)
+            | Q(departamento__icontains=query)
+        )
     now = datetime.datetime.now()
     generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM', 'a.m.').replace('PM', 'p.m.')
     workbook = Workbook()
@@ -977,14 +1050,29 @@ def exportar_trabajadores_excel(request):
 @login_required
 @user_passes_test(es_gestion_humana)
 def exportar_trabajadores_pdf(request):
-    """Exporta la lista de trabajadores a PDF."""
+    """Exporta la lista de trabajadores a PDF (respeta filtros de consulta)."""
+    query = request.GET.get('q', '').strip()
+    filtro_estado = request.GET.get('estado', 'TODOS')
     trabajadores = Trabajador.objects.select_related('user').order_by('user__last_name')
+    if filtro_estado == 'OBLIGATORIO':
+        trabajadores = trabajadores.filter(password_reset_required=True)
+    elif filtro_estado == 'COMPLETO':
+        trabajadores = trabajadores.filter(password_reset_required=False)
+    if query:
+        trabajadores = trabajadores.filter(
+            Q(cedula__icontains=query)
+            | Q(user__first_name__icontains=query)
+            | Q(user__last_name__icontains=query)
+            | Q(user__email__icontains=query)
+            | Q(cargo__icontains=query)
+            | Q(departamento__icontains=query)
+        )
     now = datetime.datetime.now()
     generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM', 'a.m.').replace('PM', 'p.m.')
     timestamp = now.strftime('%Y%m%d_%I%M%S')
 
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=30, bottomMargin=30)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=90, bottomMargin=30)
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'Title',
@@ -1012,26 +1100,13 @@ def exportar_trabajadores_pdf(request):
     cell_style = ParagraphStyle(
         'Cell',
         parent=styles['Normal'],
-        alignment=4,
+        alignment=0,
         fontSize=9,
         leading=12,
         spaceAfter=4,
     )
 
     story = []
-    encabezado_path = get_encabezado_path()
-    if encabezado_path:
-        try:
-            image_reader = ImageReader(encabezado_path)
-            orig_w, orig_h = image_reader.getSize()
-            max_width, max_height = 420, 100
-            scale = min(max_width / orig_w, max_height / orig_h, 1)
-            img = ReportLabImage(encabezado_path, width=orig_w * scale, height=orig_h * scale)
-        except Exception:
-            img = ReportLabImage(encabezado_path, width=420, height=100)
-        img.hAlign = 'LEFT'
-        story.append(img)
-        story.append(Spacer(1, 10))
 
     right_style = ParagraphStyle(
         'Right',
@@ -1041,10 +1116,7 @@ def exportar_trabajadores_pdf(request):
         leading=12,
         spaceAfter=12,
     )
-    story.append(Paragraph('Lista de Trabajadores', title_style))
-    story.append(Paragraph(f'Fecha de descarga: {generated_at}', right_style))
-    story.append(Spacer(1, 12))
-
+    
     data = [[
         Paragraph('Cédula', header_style),
         Paragraph('Nombre', header_style),
@@ -1080,6 +1152,9 @@ def exportar_trabajadores_pdf(request):
     ]))
 
     story.append(table)
+    # Set metadata so el callback pueda dibujar título y fecha en cada página
+    doc.report_title = 'Lista de Trabajadores'
+    doc.generated_at = generated_at
     doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
     buffer.seek(0)
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')

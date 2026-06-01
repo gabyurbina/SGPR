@@ -15,6 +15,7 @@
 
 <!-- Filtros de búsqueda y estado para el listado de solicitudes. -->
 <form method="get" class="search-filters mb-4">
+  <input type="hidden" name="tab" id="active-tab" value="{{ request.GET.tab|default:'personal' }}">
   <div class="row gy-2 gx-2 align-items-center">
     <div class="col-md-6">
       <label class="form-label visually-hidden" for="search-query">Buscar</label>
@@ -41,15 +42,15 @@
   <!-- Mostrar dos pestañas: Mis solicitudes y Solicitudes por aprobar -->
   <ul class="nav nav-tabs mb-3" role="tablist">
     <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="tab-personal" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab" aria-controls="personal" aria-selected="true">Mis solicitudes</button>
+      <button class="{% if active_tab == 'personal' %}nav-link active{% else %}nav-link{% endif %}" id="tab-personal" data-bs-toggle="tab" data-bs-target="#personal" type="button" role="tab" aria-controls="personal" aria-selected="true">Mis solicitudes</button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="tab-admin" data-bs-toggle="tab" data-bs-target="#admin" type="button" role="tab" aria-controls="admin" aria-selected="false">Solicitudes por aprobar</button>
+      <button class="{% if active_tab == 'admin' %}nav-link active{% else %}nav-link{% endif %}" id="tab-admin" data-bs-toggle="tab" data-bs-target="#admin" type="button" role="tab" aria-controls="admin" aria-selected="false">Solicitudes por aprobar</button>
     </li>
   </ul>
 
   <div class="tab-content">
-    <div class="tab-pane fade show active" id="personal" role="tabpanel" aria-labelledby="tab-personal">
+    <div class="{% if active_tab == 'personal' %}tab-pane fade show active{% else %}tab-pane fade{% endif %}" id="personal" role="tabpanel" aria-labelledby="tab-personal">
       {% if personal_page and personal_page.paginator.count > 0 %}
         {% include 'dashboard_requests_table.html' with page_obj=personal_page paginator=paginator_personal es_admin=False is_super_admin=is_super_admin admin_worker_user_ids=admin_worker_user_ids %}
       {% else %}
@@ -57,7 +58,7 @@
       {% endif %}
     </div>
 
-    <div class="tab-pane fade" id="admin" role="tabpanel" aria-labelledby="tab-admin">
+    <div class="{% if active_tab == 'admin' %}tab-pane fade show active{% else %}tab-pane fade{% endif %}" id="admin" role="tabpanel" aria-labelledby="tab-admin">
       {% if admin_page and admin_page.paginator.count > 0 %}
         {% include 'dashboard_requests_table.html' with page_obj=admin_page paginator=paginator_admin es_admin=True is_super_admin=is_super_admin admin_worker_user_ids=admin_worker_user_ids %}
       {% else %}
@@ -86,4 +87,17 @@
     </div>
   {% endif %}
 {% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  var hidden = document.getElementById('active-tab');
+  if(!hidden) return;
+  document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var target = btn.getAttribute('data-bs-target') || btn.getAttribute('data-target');
+      if(target) hidden.value = target.replace('#','');
+    });
+  });
+});
+</script>
+
 {% endblock %}
