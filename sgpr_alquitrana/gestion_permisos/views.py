@@ -1211,14 +1211,18 @@ def estadisticas(request):
 @login_required
 @user_passes_test(es_gestion_humana)
 def estadisticas_data(request):
-    """Devuelve conteos agregados según filtros (JSON)."""
+    """Devuelve conteos agregados según filtros (JSON).
+    Si se filtra por cédula (q), devuelve datasets por fecha y detalle de solicitudes."""
     q = request.GET.get('q', '').strip()
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
+    ubicacion = request.GET.get('ubicacion', '').strip()
 
-    qs = Solicitud.objects.all()
+    qs = Solicitud.objects.select_related('trabajador').all()
     if q:
         qs = qs.filter(trabajador__cedula__icontains=q)
+    if ubicacion:
+        qs = qs.filter(trabajador__departamento__icontains=ubicacion)
     if fecha_inicio:
         try:
             fi = datetime.datetime.strptime(fecha_inicio, '%Y-%m-%d')
@@ -1232,6 +1236,27 @@ def estadisticas_data(request):
         except Exception:
             pass
 
+    # Si se filtró por trabajador, devolver detalle por fecha y por estatus
+    if q:
+        # obtener fechas únicas ordenadas
+        dates_qs = qs.dates('fecha_creacion', 'day')
+        labels = [d.strftime('%d-%m-%Y') for d in dates_qs]
+        statuses = [('APROBADO', '#1cc88a'), ('RECHAZO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
+        datasets = []
+        for status, color in statuses:
+            data = [qs.filter(estado=status, fecha_creacion__date=d).count() for d in dates_qs]
+            datasets.append({'label': status, 'data': data, 'color': color})
+        # detalle de solicitudes (fecha, estado, id)
+        detail = []
+        for s in qs.order_by('fecha_creacion'):
+            detail.append({
+                'fecha': s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'),
+                'estado': s.estado,
+                'numero': getattr(s.trabajador, 'cedula', '') or str(getattr(s, 'id', '')),
+            })
+        return JsonResponse({'labels': labels, 'datasets': datasets, 'detail': detail})
+
+    # respuesta resumida
     total = qs.count()
     aprobadas = qs.filter(estado='APROBADO').count()
     rechazadas = qs.filter(estado='RECHAZO').count()
@@ -1249,10 +1274,13 @@ def exportar_estadisticas_excel(request):
     q = request.GET.get('q', '').strip()
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
+    ubicacion = request.GET.get('ubicacion', '').strip()
 
-    qs = Solicitud.objects.all()
+    qs = Solicitud.objects.select_related('trabajador').all()
     if q:
         qs = qs.filter(trabajador__cedula__icontains=q)
+    if ubicacion:
+        qs = qs.filter(trabajador__departamento__icontains=ubicacion)
     if fecha_inicio:
         try:
             fi = datetime.datetime.strptime(fecha_inicio, '%Y-%m-%d')
@@ -1283,27 +1311,57 @@ def exportar_estadisticas_excel(request):
     hoja.append(['Fecha de elaboración:', '', '', '', generated_at])
     hoja.append([])
 
-    # Datos
+    # Datos resumen
     hoja.append(['Métrica', 'Valor'])
     hoja.append(['Total solicitudes', total])
     hoja.append(['Aprobadas', aprobadas])
     hoja.append(['Rechazadas', rechazadas])
     hoja.append(['Pendientes', pendientes])
 
-    # Intentar generar gráfico como imagen con matplotlib y añadirlo
+    # Si se filtró por trabajador, añadir detalle y gráfico por fecha/estado
     try:
         import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(figsize=(6,3))
-        ax.pie([aprobadas, rechazadas, pendientes], labels=['Aprobadas','Rechazadas','Pendientes'], autopct='%1.1f%%')
-        imgdata = BytesIO()
-        fig.savefig(imgdata, format='png', bbox_inches='tight')
-        plt.close(fig)
-        imgdata.seek(0)
         from openpyxl.drawing.image import Image as ExcelImage
-        img = ExcelImage(imgdata)
-        hoja.add_image(img, 'D2')
+
+        if q:
+            # fechas y conteos
+            dates_qs = qs.dates('fecha_creacion', 'day')
+            labels = [d.strftime('%d-%m-%Y') for d in dates_qs]
+            statuses = [('APROBADO', '#1cc88a'), ('RECHAZO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
+            # stacked bar
+            width = 4
+            fig, ax = plt.subplots(figsize=(width,2))
+            bottoms = [0]*len(labels)
+            for status, color in statuses:
+                counts = [qs.filter(estado=status, fecha_creacion__date=d).count() for d in dates_qs]
+                ax.bar(labels, counts, bottom=bottoms, label=status, color=color)
+                bottoms = [a+b for a,b in zip(bottoms, counts)]
+            ax.legend()
+            ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=8)
+            ax.set_ylabel('Solicitudes')
+            imgbuf = BytesIO()
+            fig.tight_layout()
+            fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=150)
+            plt.close(fig)
+            imgbuf.seek(0)
+            hoja.add_image(ExcelImage(imgbuf), 'D2')
+
+            # detalle de solicitudes
+            hoja.append([])
+            hoja.append(['Fecha', 'Estatus', 'Solicitud ID'])
+            for s in qs.order_by('fecha_creacion'):
+                hoja.append([s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'), s.estado, getattr(s.trabajador, 'cedula', '') or s.id])
+        else:
+            # gráfico resumen pequeño (pie)
+            fig, ax = plt.subplots(figsize=(4,2))
+            ax.pie([aprobadas, rechazadas, pendientes], labels=['Aprobadas','Rechazadas','Pendientes'], autopct='%1.1f%%')
+            imgbuf = BytesIO()
+            fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=150)
+            plt.close(fig)
+            imgbuf.seek(0)
+            hoja.add_image(ExcelImage(imgbuf), 'D2')
     except Exception:
         pass
 
@@ -1323,10 +1381,13 @@ def exportar_estadisticas_pdf(request):
     q = request.GET.get('q', '').strip()
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
+    ubicacion = request.GET.get('ubicacion', '').strip()
 
-    qs = Solicitud.objects.all()
+    qs = Solicitud.objects.select_related('trabajador').all()
     if q:
         qs = qs.filter(trabajador__cedula__icontains=q)
+    if ubicacion:
+        qs = qs.filter(trabajador__departamento__icontains=ubicacion)
     if fecha_inicio:
         try:
             fi = datetime.datetime.strptime(fecha_inicio, '%Y-%m-%d')
@@ -1351,10 +1412,26 @@ def exportar_estadisticas_pdf(request):
         import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
-        fig, ax = plt.subplots(figsize=(6,3))
-        ax.bar(['Aprobadas','Rechazadas','Pendientes'], [aprobadas, rechazadas, pendientes], color=['#1cc88a','#e74a3b','#f6c23e'])
+        if q:
+            # stacked bar por fecha
+            dates_qs = qs.dates('fecha_creacion', 'day')
+            labels = [d.strftime('%d-%m-%Y') for d in dates_qs]
+            statuses = [('APROBADO', '#1cc88a'), ('RECHAZO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
+            fig, ax = plt.subplots(figsize=(6,2))
+            bottoms = [0]*len(labels)
+            for status, color in statuses:
+                counts = [qs.filter(estado=status, fecha_creacion__date=d).count() for d in dates_qs]
+                ax.bar(labels, counts, bottom=bottoms, label=status, color=color)
+                bottoms = [a+b for a,b in zip(bottoms, counts)]
+            ax.legend(fontsize=8)
+            ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=8)
+            ax.set_ylabel('Solicitudes')
+        else:
+            fig, ax = plt.subplots(figsize=(6,2))
+            ax.pie([aprobadas, rechazadas, pendientes], labels=['Aprobadas','Rechazadas','Pendientes'], autopct='%1.1f%%')
         imgbuf = BytesIO()
-        fig.savefig(imgbuf, format='png', bbox_inches='tight')
+        fig.tight_layout()
+        fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=150)
         plt.close(fig)
         imgbuf.seek(0)
         imgdata = imgbuf
@@ -1369,19 +1446,31 @@ def exportar_estadisticas_pdf(request):
     doc.report_title = 'Estadísticas de Solicitudes'
     doc.generated_at = datetime.datetime.now().strftime('%d-%m-%Y %I:%M:%S %p').replace('AM','a.m.').replace('PM','p.m.')
 
-    # Añadir tabla de datos
-    data = [['Métrica','Valor'], ['Total solicitudes', total], ['Aprobadas', aprobadas], ['Rechazadas', rechazadas], ['Pendientes', pendientes]]
-    table = Table(data, colWidths=[200,100])
+    # Añadir imagen si existe
     story.append(Spacer(1,12))
     if imgdata:
         try:
-            image_reader = ImageReader(imgdata)
-            img = ReportLabImage(imgdata, width=420, height=200)
+            img = ReportLabImage(imgdata, width=350, height=160)
             story.append(img)
             story.append(Spacer(1,12))
         except Exception:
             pass
+
+    # Añadir tabla de resumen
+    data = [['Métrica','Valor'], ['Total solicitudes', total], ['Aprobadas', aprobadas], ['Rechazadas', rechazadas], ['Pendientes', pendientes]]
+    table = Table(data, colWidths=[200,100])
     story.append(table)
+
+    # Si filtrado por trabajador, añadir detalle de solicitudes (fecha y estatus)
+    if q:
+        story.append(Spacer(1,12))
+        detail_data = [['Fecha','Estatus','Solicitud ID']]
+        for s in qs.order_by('fecha_creacion'):
+            detail_data.append([s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'), s.estado, getattr(s.trabajador, 'cedula', '') or s.id])
+        detail_table = Table(detail_data, colWidths=[180,120,80])
+        story.append(Spacer(1,12))
+        story.append(detail_table)
+
     doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
     buffer.seek(0)
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%I%M%S')

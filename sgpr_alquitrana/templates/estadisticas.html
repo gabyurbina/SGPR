@@ -26,6 +26,10 @@
     <label class="visually-hidden" for="cedula">Cédula</label>
     <input type="text" id="cedula" name="q" placeholder="Cédula (opcional)" class="form-control" value="{{ request.GET.q|default:'' }}">
   </div>
+  <div class="col-md-3">
+    <label class="visually-hidden" for="ubicacion">Ubicación Administrativa</label>
+    <input type="text" id="ubicacion" name="ubicacion" placeholder="Ubicación administrativa (opcional)" class="form-control" value="{{ request.GET.ubicacion|default:'' }}">
+  </div>
   <div class="col-md-2">
     <select id="chart_type" name="chart_type" class="form-select">
       <option value="pie">Circular</option>
@@ -38,8 +42,10 @@
 </form>
 
 <div class="mb-4">
-  <canvas id="statsChart" width="800" height="400"></canvas>
+  <canvas id="statsChart" width="480" height="240" style="max-width:480px; max-height:240px;"></canvas>
 </div>
+
+<div id="stats-detail" class="mt-3"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -49,26 +55,53 @@ async function fetchData(params) {
   return resp.json();
 }
 
+function renderDetailTable(detailRows) {
+  if(!detailRows || detailRows.length===0) return '';
+  let html = '<h5>Detalle de solicitudes</h5>';
+  html += '<table class="table table-sm"><thead><tr><th>Fecha</th><th>Estatus</th><th>Número</th></tr></thead><tbody>';
+  detailRows.forEach(r=>{
+    html += `<tr><td>${r.fecha}</td><td>${r.estado}</td><td>${r.numero}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
 async function renderChart() {
   const params = Object.fromEntries(new FormData(document.getElementById('stats-form')));
   const data = await fetchData(params);
   const ctx = document.getElementById('statsChart').getContext('2d');
   if(window._statsChart) window._statsChart.destroy();
-  const labels = data.labels;
-  const values = data.values;
   const type = params.chart_type || 'pie';
-  window._statsChart = new Chart(ctx, {
-    type: type,
-    data: {
-      labels: labels,
-      datasets: [{
-        label: 'Solicitudes',
-        data: values,
-        backgroundColor: ['#4e73df','#1cc88a','#e74a3b','#f6c23e']
-      }]
-    },
-    options: {responsive:true}
-  });
+
+  if (data.datasets) {
+    // detailed per-date datasets (when filtered by trabajador)
+    const labels = data.labels;
+    const datasets = data.datasets.map(ds=>({
+      label: ds.label,
+      data: ds.data,
+      backgroundColor: ds.color || '#4e73df'
+    }));
+    window._statsChart = new Chart(ctx, {
+      type: type === 'pie' ? 'doughnut' : 'bar',
+      data: { labels: labels, datasets: datasets },
+      options: {responsive:true, scales: { x: { stacked: true }, y: { stacked: true } }}
+    });
+    // show detail table
+    document.getElementById('stats-detail').innerHTML = renderDetailTable(data.detail || []);
+  } else {
+    const labels = data.labels;
+    const values = data.values;
+    window._statsChart = new Chart(ctx, {
+      type: type,
+      data: {
+        labels: labels,
+        datasets: [{ label: 'Solicitudes', data: values, backgroundColor: ['#4e73df','#1cc88a','#e74a3b','#f6c23e'] }]
+      },
+      options: {responsive:true}
+    });
+    document.getElementById('stats-detail').innerHTML = '';
+  }
+
   // Update export links
   const qs = new URLSearchParams(params).toString();
   document.getElementById('export-xlsx').href = '{% url "exportar_estadisticas_excel" %}' + (qs?('?'+qs):'');
