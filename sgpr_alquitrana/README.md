@@ -1,6 +1,6 @@
 # SGPR - Sistema de Gestión de Permisos y Reposos
 
-**SGPR** es una aplicación Django para gestionar las solicitudes de permisos y reposos del personal, con control de usuarios, auditoría y exportación de reportes.
+*Es una aplicación Django para gestionar las solicitudes de permisos y reposos del personal, con control de usuarios, auditoría y exportación de reportes.
 
 ---
 
@@ -245,7 +245,7 @@ Asegúrate de configurar las variables de entorno antes de levantar el contenedo
 
 ---
 
-## Comentarios para otros programadores
+## Comentarios para otros desarrolladores y o mantenedores de la aplicación
 
 - Revisa `gestion_permisos/views.py` para entender el comportamiento principal.
 - `gestion_permisos/forms.py` contiene validaciones clave de datos y archivos.

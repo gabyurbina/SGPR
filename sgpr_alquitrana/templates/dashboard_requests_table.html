@@ -77,9 +77,9 @@
         {% if page_obj.has_previous %}
           <li class="page-item">
             {% if es_admin %}
-              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_admin={{ page_obj.previous_page_number }}">Anterior</a>
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&tipo={{ tipo }}&tab={{ request.GET.tab|default:'personal' }}&page_admin={{ page_obj.previous_page_number }}">Anterior</a>
             {% else %}
-              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_personal={{ page_obj.previous_page_number }}">Anterior</a>
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&tipo={{ tipo }}&tab={{ request.GET.tab|default:'personal' }}&page_personal={{ page_obj.previous_page_number }}">Anterior</a>
             {% endif %}
           </li>
         {% else %}
@@ -92,9 +92,9 @@
           {% else %}
             <li class="page-item">
               {% if es_admin %}
-                <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_admin={{ num }}">{{ num }}</a>
+                <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&tipo={{ tipo }}&tab={{ request.GET.tab|default:'personal' }}&page_admin={{ num }}">{{ num }}</a>
               {% else %}
-                <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_personal={{ num }}">{{ num }}</a>
+                <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&tipo={{ tipo }}&tab={{ request.GET.tab|default:'personal' }}&page_personal={{ num }}">{{ num }}</a>
               {% endif %}
             </li>
           {% endif %}
@@ -103,9 +103,9 @@
         {% if page_obj.has_next %}
           <li class="page-item">
             {% if es_admin %}
-              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_admin={{ page_obj.next_page_number }}">Siguiente</a>
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&tipo={{ tipo }}&tab={{ request.GET.tab|default:'personal' }}&page_admin={{ page_obj.next_page_number }}">Siguiente</a>
             {% else %}
-              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&page_personal={{ page_obj.next_page_number }}">Siguiente</a>
+              <a class="page-link" href="?q={{ query }}&estado={{ filtro_estado }}&tipo={{ tipo }}&tab={{ request.GET.tab|default:'personal' }}&page_personal={{ page_obj.next_page_number }}">Siguiente</a>
             {% endif %}
           </li>
         {% else %}

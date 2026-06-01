@@ -41,8 +41,19 @@
   </div>
 </form>
 
-<div class="mb-4 text-center">
-  <canvas id="statsChart" width="480" height="240" style="display:inline-block; max-width:480px; max-height:240px;"></canvas>
+<style>
+  .stats-row { display:flex; gap:20px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
+  .stats-canvas { flex: 1 1 45%; max-width: 48%; min-width:280px; }
+  .stats-canvas canvas { width:100% !important; height:auto !important; }
+</style>
+
+<div class="stats-row mb-4">
+  <div class="stats-canvas">
+    <canvas id="statsChart" width="1574" height="787" style="box-sizing: border-box; display: block; height: 393.6px; width: 787px;"></canvas>
+  </div>
+  <div class="stats-canvas">
+    <canvas id="statsChartLocations" width="1574" height="787" style="box-sizing: border-box; display: block; height: 393.6px; width: 787px;"></canvas>
+  </div>
 </div>
 
 <div id="stats-detail" class="mt-3"></div>
@@ -58,9 +69,9 @@ async function fetchData(params) {
 function renderDetailTable(detailRows) {
   if(!detailRows || detailRows.length===0) return '';
   let html = '<h5>Detalle de solicitudes</h5>';
-  html += '<table class="table table-sm"><thead><tr><th>Fecha</th><th>Estatus</th><th>Número</th></tr></thead><tbody>';
+  html += '<table class="table table-sm"><thead><tr><th>Fecha</th><th>Tipo</th><th>Estatus</th><th>Motivo</th></tr></thead><tbody>';
   detailRows.forEach(r=>{
-    html += `<tr><td>${r.fecha}</td><td>${r.estado}</td><td>${r.numero}</td></tr>`;
+    html += `<tr><td>${r.fecha}</td><td>${r.tipo || ''}</td><td>${r.estado}</td><td>${r.motivo || ''}</td></tr>`;
   });
   html += '</tbody></table>';
   return html;
@@ -70,11 +81,13 @@ async function renderChart() {
   const params = Object.fromEntries(new FormData(document.getElementById('stats-form')));
   const data = await fetchData(params);
   const ctx = document.getElementById('statsChart').getContext('2d');
+  const ctxLoc = document.getElementById('statsChartLocations').getContext('2d');
   if(window._statsChart) window._statsChart.destroy();
+  if(window._statsChartLoc) window._statsChartLoc.destroy();
   const type = params.chart_type || 'pie';
 
   if (data.datasets) {
-    // When filtered by trabajador: if chart_type is 'pie' show aggregated pie of statuses; else show stacked bar per date
+    // filtered by trabajador: single chart (as before) and detail
     if (type === 'pie') {
       const statusLabels = data.datasets.map(ds=>ds.label);
       const statusValues = data.datasets.map(ds=>ds.data.reduce((a,b)=>a+b,0));
@@ -84,6 +97,8 @@ async function renderChart() {
         options: {responsive:true, plugins: {legend: {position: 'bottom'}}}
       });
       document.getElementById('stats-detail').innerHTML = renderDetailTable(data.detail || []);
+      // hide locations canvas for worker filter
+      document.getElementById('statsChartLocations').parentElement.style.display = 'none';
     } else {
       const labels = data.labels;
       const datasets = data.datasets.map(ds=>({ label: ds.label, data: ds.data, backgroundColor: ds.color || '#4e73df' }));
@@ -93,11 +108,14 @@ async function renderChart() {
         options: {responsive:true, plugins: {legend: {position: 'bottom'}}, scales: { x: { stacked: true }, y: { stacked: true } }}
       });
       document.getElementById('stats-detail').innerHTML = renderDetailTable(data.detail || []);
+      document.getElementById('statsChartLocations').parentElement.style.display = 'none';
     }
 
   } else {
+    // No trabajador filter: render two charts
     const labels = data.labels;
     const values = data.values;
+    // summary chart
     window._statsChart = new Chart(ctx, {
       type: type,
       data: {
@@ -106,6 +124,25 @@ async function renderChart() {
       },
       options: {responsive:true, plugins: {legend: {position: 'bottom'}}}
     });
+    // locations chart
+    if (data.locations && data.locations.labels && data.locations.labels.length>0) {
+      document.getElementById('statsChartLocations').parentElement.style.display = '';
+      if (type === 'pie') {
+        window._statsChartLoc = new Chart(ctxLoc, {
+          type: 'pie',
+          data: { labels: data.locations.labels, datasets: [{ data: data.locations.values, backgroundColor: data.locations.labels.map((_,i)=> i%2==0? '#4e73df':'#1cc88a') }] },
+          options: {responsive:true, plugins: {legend: {position: 'bottom'}}}
+        });
+      } else {
+        window._statsChartLoc = new Chart(ctxLoc, {
+          type: 'bar',
+          data: { labels: data.locations.labels, datasets: [{ label: 'Solicitudes por ubicación', data: data.locations.values, backgroundColor: data.locations.labels.map((_,i)=> i%2==0? '#4e73df':'#1cc88a') }] },
+          options: {responsive:true, plugins: {legend: {position: 'bottom'}}, scales: { x: { ticks: {autoSkip: false} } }}
+        });
+      }
+    } else {
+      document.getElementById('statsChartLocations').parentElement.style.display = 'none';
+    }
     document.getElementById('stats-detail').innerHTML = '';
   }
 
