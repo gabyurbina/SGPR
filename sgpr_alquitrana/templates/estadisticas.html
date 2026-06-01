@@ -13,12 +13,12 @@
   </div>
 </div>
 
-<form id="stats-form" method="get" class="mb-4 row gx-2 gy-2 align-items-center">
-  <div class="col-md-3">
+<form id="stats-form" method="get" class="mb-4 row gx-2 gy-2 align-items-end">
+  <div class="col-md-2">
     <label class="visually-hidden" for="fecha_inicio">Fecha inicio</label>
     <input type="date" id="fecha_inicio" name="fecha_inicio" class="form-control" value="{{ request.GET.fecha_inicio|default:'' }}">
   </div>
-  <div class="col-md-3">
+  <div class="col-md-2">
     <label class="visually-hidden" for="fecha_fin">Fecha fin</label>
     <input type="date" id="fecha_fin" name="fecha_fin" class="form-control" value="{{ request.GET.fecha_fin|default:'' }}">
   </div>
@@ -30,10 +30,10 @@
     <label class="visually-hidden" for="ubicacion">Ubicación Administrativa</label>
     <input type="text" id="ubicacion" name="ubicacion" placeholder="Ubicación administrativa (opcional)" class="form-control" value="{{ request.GET.ubicacion|default:'' }}">
   </div>
-  <div class="col-md-2">
+  <div class="col-md-1">
     <select id="chart_type" name="chart_type" class="form-select">
-      <option value="pie">Circular</option>
-      <option value="bar">Barras</option>
+      <option value="pie" {% if request.GET.chart_type == 'pie' %}selected{% endif %}>Circular</option>
+      <option value="bar" {% if request.GET.chart_type == 'bar' %}selected{% endif %}>Barras</option>
     </select>
   </div>
   <div class="col-md-1 d-grid">
@@ -41,8 +41,8 @@
   </div>
 </form>
 
-<div class="mb-4">
-  <canvas id="statsChart" width="480" height="240" style="max-width:480px; max-height:240px;"></canvas>
+<div class="mb-4 text-center">
+  <canvas id="statsChart" width="480" height="240" style="display:inline-block; max-width:480px; max-height:240px;"></canvas>
 </div>
 
 <div id="stats-detail" class="mt-3"></div>
@@ -74,20 +74,27 @@ async function renderChart() {
   const type = params.chart_type || 'pie';
 
   if (data.datasets) {
-    // detailed per-date datasets (when filtered by trabajador)
-    const labels = data.labels;
-    const datasets = data.datasets.map(ds=>({
-      label: ds.label,
-      data: ds.data,
-      backgroundColor: ds.color || '#4e73df'
-    }));
-    window._statsChart = new Chart(ctx, {
-      type: type === 'pie' ? 'doughnut' : 'bar',
-      data: { labels: labels, datasets: datasets },
-      options: {responsive:true, scales: { x: { stacked: true }, y: { stacked: true } }}
-    });
-    // show detail table
-    document.getElementById('stats-detail').innerHTML = renderDetailTable(data.detail || []);
+    // When filtered by trabajador: if chart_type is 'pie' show aggregated pie of statuses; else show stacked bar per date
+    if (type === 'pie') {
+      const statusLabels = data.datasets.map(ds=>ds.label);
+      const statusValues = data.datasets.map(ds=>ds.data.reduce((a,b)=>a+b,0));
+      window._statsChart = new Chart(ctx, {
+        type: 'pie',
+        data: { labels: statusLabels, datasets: [{ data: statusValues, backgroundColor: data.datasets.map(ds=>ds.color||'#4e73df') }] },
+        options: {responsive:true, plugins: {legend: {position: 'bottom'}}}
+      });
+      document.getElementById('stats-detail').innerHTML = renderDetailTable(data.detail || []);
+    } else {
+      const labels = data.labels;
+      const datasets = data.datasets.map(ds=>({ label: ds.label, data: ds.data, backgroundColor: ds.color || '#4e73df' }));
+      window._statsChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels: labels, datasets: datasets },
+        options: {responsive:true, plugins: {legend: {position: 'bottom'}}, scales: { x: { stacked: true }, y: { stacked: true } }}
+      });
+      document.getElementById('stats-detail').innerHTML = renderDetailTable(data.detail || []);
+    }
+
   } else {
     const labels = data.labels;
     const values = data.values;
@@ -97,7 +104,7 @@ async function renderChart() {
         labels: labels,
         datasets: [{ label: 'Solicitudes', data: values, backgroundColor: ['#4e73df','#1cc88a','#e74a3b','#f6c23e'] }]
       },
-      options: {responsive:true}
+      options: {responsive:true, plugins: {legend: {position: 'bottom'}}}
     });
     document.getElementById('stats-detail').innerHTML = '';
   }

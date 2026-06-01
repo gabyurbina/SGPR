@@ -1246,13 +1246,13 @@ def estadisticas_data(request):
         for status, color in statuses:
             data = [qs.filter(estado=status, fecha_creacion__date=d).count() for d in dates_qs]
             datasets.append({'label': status, 'data': data, 'color': color})
-        # detalle de solicitudes (fecha, estado, id)
+        # detalle de solicitudes (fecha, estado, tipo)
         detail = []
         for s in qs.order_by('fecha_creacion'):
             detail.append({
                 'fecha': s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'),
                 'estado': s.estado,
-                'numero': getattr(s.trabajador, 'cedula', '') or str(getattr(s, 'id', '')),
+                'tipo': s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo,
             })
         return JsonResponse({'labels': labels, 'datasets': datasets, 'detail': detail})
 
@@ -1348,11 +1348,11 @@ def exportar_estadisticas_excel(request):
             imgbuf.seek(0)
             hoja.add_image(ExcelImage(imgbuf), 'D2')
 
-            # detalle de solicitudes
+            # detalle de solicitudes (sin mostrar cédula) - incluir tipo
             hoja.append([])
-            hoja.append(['Fecha', 'Estatus', 'Solicitud ID'])
+            hoja.append(['Fecha', 'Tipo', 'Estatus'])
             for s in qs.order_by('fecha_creacion'):
-                hoja.append([s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'), s.estado, getattr(s.trabajador, 'cedula', '') or s.id])
+                hoja.append([s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'), s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo, s.estado])
         else:
             # gráfico resumen pequeño (pie)
             fig, ax = plt.subplots(figsize=(4,2))
@@ -1451,6 +1451,7 @@ def exportar_estadisticas_pdf(request):
     if imgdata:
         try:
             img = ReportLabImage(imgdata, width=350, height=160)
+            img.hAlign = 'CENTER'
             story.append(img)
             story.append(Spacer(1,12))
         except Exception:
@@ -1461,13 +1462,32 @@ def exportar_estadisticas_pdf(request):
     table = Table(data, colWidths=[200,100])
     story.append(table)
 
-    # Si filtrado por trabajador, añadir detalle de solicitudes (fecha y estatus)
+    # Si filtrado por trabajador, añadir encabezado con nombre y rango y detalle de solicitudes (fecha, tipo, estatus)
     if q:
+        # intentar obtener información del trabajador
+        trabajador = None
+        if qs.exists():
+            trabajador = qs.first().trabajador
+        fullname = trabajador.user.get_full_name() if trabajador else ''
+        range_text = ''
+        if fecha_inicio or fecha_fin:
+            range_text = f'{fecha_inicio or ""} - {fecha_fin or ""}'
+        # Agregar párrafo con información del trabajador
+        try:
+            from reportlab.platypus import Paragraph
+            detail_header = Paragraph(f'Reporte del trabajador: {fullname} — Rango: {range_text}', getSampleStyleSheet()['Normal'])
+            story.append(Spacer(1,6))
+            story.append(detail_header)
+            story.append(Spacer(1,6))
+        except Exception:
+            pass
+
         story.append(Spacer(1,12))
-        detail_data = [['Fecha','Estatus','Solicitud ID']]
+        detail_data = [['Fecha','Tipo','Estatus']]
         for s in qs.order_by('fecha_creacion'):
-            detail_data.append([s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'), s.estado, getattr(s.trabajador, 'cedula', '') or s.id])
-        detail_table = Table(detail_data, colWidths=[180,120,80])
+            tipo_label = s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo
+            detail_data.append([s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'), tipo_label, s.estado])
+        detail_table = Table(detail_data, colWidths=[180,150,80])
         story.append(Spacer(1,12))
         story.append(detail_table)
 
