@@ -1221,15 +1221,13 @@ def estadisticas_data(request):
         qs = qs.filter(trabajador__cedula__icontains=q)
     if fecha_inicio:
         try:
-            from datetime import datetime
-            fi = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            fi = datetime.datetime.strptime(fecha_inicio, '%Y-%m-%d')
             qs = qs.filter(fecha_creacion__date__gte=fi.date())
         except Exception:
             pass
     if fecha_fin:
         try:
-            from datetime import datetime
-            ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            ff = datetime.datetime.strptime(fecha_fin, '%Y-%m-%d')
             qs = qs.filter(fecha_creacion__date__lte=ff.date())
         except Exception:
             pass
@@ -1257,15 +1255,13 @@ def exportar_estadisticas_excel(request):
         qs = qs.filter(trabajador__cedula__icontains=q)
     if fecha_inicio:
         try:
-            from datetime import datetime
-            fi = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            fi = datetime.datetime.strptime(fecha_inicio, '%Y-%m-%d')
             qs = qs.filter(fecha_creacion__date__gte=fi.date())
         except Exception:
             pass
     if fecha_fin:
         try:
-            from datetime import datetime
-            ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            ff = datetime.datetime.strptime(fecha_fin, '%Y-%m-%d')
             qs = qs.filter(fecha_creacion__date__lte=ff.date())
         except Exception:
             pass
@@ -1333,15 +1329,13 @@ def exportar_estadisticas_pdf(request):
         qs = qs.filter(trabajador__cedula__icontains=q)
     if fecha_inicio:
         try:
-            from datetime import datetime
-            fi = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            fi = datetime.datetime.strptime(fecha_inicio, '%Y-%m-%d')
             qs = qs.filter(fecha_creacion__date__gte=fi.date())
         except Exception:
             pass
     if fecha_fin:
         try:
-            from datetime import datetime
-            ff = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            ff = datetime.datetime.strptime(fecha_fin, '%Y-%m-%d')
             qs = qs.filter(fecha_creacion__date__lte=ff.date())
         except Exception:
             pass
