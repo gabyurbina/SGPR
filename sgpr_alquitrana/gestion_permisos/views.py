@@ -1,5 +1,5 @@
 """Vistas principales de la aplicación SGPR.
-Funciones para el registro de permisos, reposos, trabajadores y auditoría.
+Funciones para el registro de permisos, reposos, trabajadores, auditoría y estadísticas.
 """
 
 from io import BytesIO
@@ -25,6 +25,7 @@ from django.views.decorators.http import require_POST
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment
+from openpyxl.drawing.image import Image as ExcelImage
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -41,6 +42,14 @@ from .forms import (
     TrabajadorEditForm,
 )
 from .models import Auditoria, Solicitud, Trabajador
+from .generador_graficos import obtener_graficos_base64, generar_grafico_pastel_png, generar_grafico_barras_png
+from .estadisticas import (
+    obtener_estadisticas_solicitudes,
+    obtener_estadisticas_por_tipo,
+    obtener_estadisticas_por_estado,
+    obtener_estadisticas_por_mes,
+    obtener_estadisticas_por_departamento,
+)
 
 
 def get_encabezado_path():
@@ -178,6 +187,27 @@ def dashboard(request):
             ],
         },
     )
+
+
+@login_required
+@user_passes_test(es_gestion_humana)
+def vista_estadisticas(request):
+    """Vista de estadísticas con gráficos."""
+    try:
+        stats = obtener_estadisticas_solicitudes()
+        graficos = obtener_graficos_base64()
+        
+        context = {
+            'stats': stats,
+            'grafico_tipo': graficos.get('grafico_tipo'),
+            'grafico_estado': graficos.get('grafico_estado'),
+            'grafico_depto': graficos.get('grafico_depto'),
+            'grafico_mes': graficos.get('grafico_mes'),
+        }
+        return render(request, 'estadisticas.html', context)
+    except Exception as e:
+        messages.error(request, f'Error al generar las estadísticas: {str(e)}')
+        return redirect('dashboard')
 
 
 def registro_trabajador(request):
@@ -704,10 +734,10 @@ def reporte_auditoria(request):
 
 
 def add_excel_header_image(hoja, workbook):
+    """Añade la imagen del encabezado al Excel."""
     encabezado_path = get_encabezado_path()
     if encabezado_path:
         try:
-            from openpyxl.drawing.image import Image as ExcelImage
             img = ExcelImage(encabezado_path)
             max_width, max_height = 520, 120
             try:
