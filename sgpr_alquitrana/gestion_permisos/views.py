@@ -122,6 +122,7 @@ def dashboard(request):
     """Panel principal: lista de solicitudes según el rol del usuario."""
     query = request.GET.get('q', '').strip()
     filtro_estado = request.GET.get('estado', 'TODOS')
+    tipo = request.GET.get('tipo', 'TODOS')
     active_tab = request.GET.get('tab', 'personal')
 
     is_worker = Trabajador.objects.filter(user=request.user).exists()
@@ -157,6 +158,8 @@ def dashboard(request):
             return qs
         if filtro_estado and filtro_estado != 'TODOS':
             qs = qs.filter(estado=filtro_estado)
+        if tipo and tipo != 'TODOS':
+            qs = qs.filter(tipo__iexact=tipo)
         if query:
             qs = qs.filter(
                 Q(trabajador__cedula__icontains=query)
@@ -219,6 +222,13 @@ def dashboard(request):
                 ('APROBADO', 'Aprobadas'),
                 ('RECHAZO', 'Rechazadas'),
             ],
+            'tipo_options': [
+                ('TODOS', 'Todos'),
+                ('PERMISO', 'Permiso'),
+                ('REPOSO', 'Reposo'),
+                ('OTRO', 'Otro'),
+            ],
+            'tipo': tipo,
         },
     )
 
@@ -565,7 +575,21 @@ def configuracion(request):
 def administrar_privilegios(request):
     """Permite a los administradores asignar o revocar privilegios de administrador."""
     query = request.GET.get('q', '').strip()
+    is_admin = request.GET.get('is_admin', 'TODOS')
+    accion = request.GET.get('accion', 'TODOS')
     trabajadores = Trabajador.objects.select_related('user').all().order_by('user__last_name')
+
+    if is_admin == 'SI':
+        trabajadores = trabajadores.filter(user__is_staff=True)
+    elif is_admin == 'NO':
+        trabajadores = trabajadores.filter(user__is_staff=False)
+
+    if accion == 'grant':
+        # Mostrar solo aquellos a los que se les puede otorgar (no son staff)
+        trabajadores = trabajadores.filter(user__is_staff=False)
+    elif accion == 'revoke':
+        # Mostrar solo aquellos a los que se les puede revocar (son staff)
+        trabajadores = trabajadores.filter(user__is_staff=True)
 
     if query:
         trabajadores = trabajadores.filter(
@@ -637,6 +661,8 @@ def administrar_privilegios(request):
             'page_obj': trabajadores_page,
             'paginator': paginator,
             'query': query,
+            'is_admin': is_admin,
+            'accion': accion,
         },
     )
 

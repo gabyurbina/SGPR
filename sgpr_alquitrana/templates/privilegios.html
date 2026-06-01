@@ -15,12 +15,28 @@
 </div>
 <form method="get" class="search-filters mb-4">
   <div class="row gy-2 gx-2 align-items-center">
-    <div class="col-md-6">
+    <div class="col-md-4">
       <label class="form-label visually-hidden" for="search-query">Buscar</label>
       <div class="input-group">
         <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
         <input id="search-query" name="q" type="search" class="form-control" placeholder="Buscar por nombre, cédula, cargo, departamento, acción..." value="{{ query|default:'' }}">
       </div>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label visually-hidden" for="filter-is-admin">Administrador</label>
+      <select id="filter-is-admin" name="is_admin" class="form-select">
+        <option value="TODOS" {% if is_admin == 'TODOS' %}selected{% endif %}>Todos</option>
+        <option value="SI" {% if is_admin == 'SI' %}selected{% endif %}>Sí</option>
+        <option value="NO" {% if is_admin == 'NO' %}selected{% endif %}>No</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label visually-hidden" for="filter-accion">Acción</label>
+      <select id="filter-accion" name="accion" class="form-select">
+        <option value="TODOS" {% if accion == 'TODOS' %}selected{% endif %}>Todas</option>
+        <option value="grant" {% if accion == 'grant' %}selected{% endif %}>Otorgar privilegios</option>
+        <option value="revoke" {% if accion == 'revoke' %}selected{% endif %}>Quitar privilegios</option>
+      </select>
     </div>
     <div class="col-md-2 text-md-end">
       <button type="submit" class="btn btn-secondary-custom w-100">Filtrar</button>
