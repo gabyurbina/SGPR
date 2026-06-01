@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Estadísticas de Solicitudes{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="mb-4">📊 Estadísticas de Solicitudes</h1>
+    
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Tarjetas de resumen -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Solicitudes</h5>
+                    <h2 class="text-primary">{{ stats.total_solicitudes }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Pendientes</h5>
+                    <h2 class="text-warning">{{ stats.pendientes }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Aprobadas</h5>
+                    <h2 class="text-success">{{ stats.aprobadas }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Rechazadas</h5>
+                    <h2 class="text-danger">{{ stats.rechazadas }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botones de descarga -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                <a href="{% url 'exportar_estadisticas_excel' %}" class="btn btn-success">
+                    <i class="fas fa-file-excel"></i> Descargar Excel con Gráficos
+                </a>
+                <a href="{% url 'exportar_estadisticas_pdf' %}" class="btn btn-danger">
+                    <i class="fas fa-file-pdf"></i> Descargar PDF con Gráficos
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row">
+        {% if grafico_tipo %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Solicitudes por Tipo</h5>
+                </div>
+                <div class="card-body text-center">
+                    <img src="{{ grafico_tipo }}" alt="Gráfico por tipo" style="max-width: 100%; height: auto;">
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if grafico_estado %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Distribución por Estado</h5>
+                </div>
+                <div class="card-body text-center">
+                    <img src="{{ grafico_estado }}" alt="Gráfico por estado" style="max-width: 100%; height: auto;">
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="row">
+        {% if grafico_depto %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Top 10 Departamentos</h5>
+                </div>
+                <div class="card-body text-center">
+                    <img src="{{ grafico_depto }}" alt="Gráfico por departamento" style="max-width: 100%; height: auto;">
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if grafico_mes %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Solicitudes por Mes (Últimos 6 Meses)</h5>
+                </div>
+                <div class="card-body text-center">
+                    <img src="{{ grafico_mes }}" alt="Gráfico por mes" style="max-width: 100%; height: auto;">
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Botón de regreso -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver al Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: transform 0.2s;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .btn-group {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    
+    .btn-group .btn {
+        flex: 1;
+        min-width: 200px;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 2px solid #007bff;
+    }
+</style>
+{% endblock %}
