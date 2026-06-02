@@ -1349,7 +1349,34 @@ def exportar_estadisticas_pdf(request):
     # Generar imágenes con matplotlib para PDF
     imgdata_requests = None
     imgdata_locations = None
-    try:
+
+    # If the client provided chart images (from Chart.js canvas), prefer them
+    if request.method == 'POST':
+        try:
+            import base64
+            chart_b64 = request.POST.get('img_chart')
+            loc_b64 = request.POST.get('img_locations')
+            if chart_b64:
+                try:
+                    header, b64 = chart_b64.split(',', 1) if ',' in chart_b64 else (None, chart_b64)
+                    img_bytes = base64.b64decode(b64)
+                    imgdata_requests = BytesIO(img_bytes)
+                    logger.info(f'PDF: received img_chart from client size={len(img_bytes)}')
+                except Exception:
+                    logger.exception('PDF: failed decoding img_chart')
+            if loc_b64:
+                try:
+                    header, b64 = loc_b64.split(',', 1) if ',' in loc_b64 else (None, loc_b64)
+                    img_bytes = base64.b64decode(b64)
+                    imgdata_locations = BytesIO(img_bytes)
+                    logger.info(f'PDF: received img_locations from client size={len(img_bytes)}')
+                except Exception:
+                    logger.exception('PDF: failed decoding img_locations')
+        except Exception:
+            logger.exception('PDF: error processing client-provided images')
+
+    if not (imgdata_requests or imgdata_locations):
+        try:
         import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt

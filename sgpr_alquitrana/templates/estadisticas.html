@@ -193,9 +193,8 @@ async function renderChart() {
     document.getElementById('stats-detail').innerHTML = '';
   }
 
-  // Update export link
-  const qs = new URLSearchParams(params).toString();
-  document.getElementById('export-pdf').href = '{% url "exportar_estadisticas_pdf" %}' + (qs?('?'+qs):'');
+  // export handled by submitPdf() which sends canvas images to the server
+  // (no href update needed)
 }
 
 // bind worker search input
@@ -214,6 +213,54 @@ document.addEventListener('click', function(e){
 document.getElementById('stats-form').addEventListener('submit', function(e){
   e.preventDefault(); renderChart();
 });
+// bind export button
+async function submitPdf(){
+  try{
+    const formEl = document.getElementById('stats-form');
+    const params = Object.fromEntries(new FormData(formEl));
+    const canvasMain = document.getElementById('statsChart');
+    const canvasLoc = document.getElementById('statsChartLocations');
+    let img_chart = '';
+    let img_locations = '';
+    try{ if(canvasMain){ img_chart = canvasMain.toDataURL('image/png'); } }catch(e){ console.log('submitPdf: cannot read main canvas',e); }
+    try{ if(canvasLoc && canvasLoc.parentElement.style.display !== 'none'){ img_locations = canvasLoc.toDataURL('image/png'); } }catch(e){ console.log('submitPdf: cannot read loc canvas',e); }
+
+    const fd = new FormData();
+    for(const [k,v] of Object.entries(params)) fd.append(k, v);
+    fd.append('img_chart', img_chart);
+    fd.append('img_locations', img_locations);
+
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+          const cookie = cookies[i].trim();
+          if (cookie.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
+          }
+        }
+      }
+      return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    const resp = await fetch('{% url "exportar_estadisticas_pdf" %}', { method: 'POST', headers: { 'X-CSRFToken': csrftoken }, body: fd });
+    if(!resp.ok){ const txt = await resp.text(); console.error('PDF download failed', resp.status, txt); alert('Error generando PDF'); return; }
+    const blob = await resp.blob();
+    const contentDisp = resp.headers.get('Content-Disposition') || '';
+    let filename = 'estadisticas.pdf';
+    const m = contentDisp.match(/filename="?([^\"]+)"?/);
+    if(m && m[1]) filename = m[1];
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 10000);
+  }catch(e){ console.error('submitPdf error', e); alert('Error al generar PDF'); }
+}
+
+const exportBtn = document.getElementById('export-pdf-btn');
+if(exportBtn) exportBtn.addEventListener('click', ()=>{ submitPdf(); });
+
 // Initial render
 renderChart();
 </script>
