@@ -1396,29 +1396,29 @@ def exportar_estadisticas_pdf(request):
             dates_list = [d.strftime('%d-%m-%Y') for d in dates_qs]
 
             if any_filter and dates_qs:
-            # stacked bar por fecha
-            statuses = [('APROBADO', '#1cc88a'), ('RECHAZADO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
-            fig, ax = plt.subplots(figsize=(6,1.6))
-            bottoms = [0] * len(dates_list)
-            for status, color in statuses:
-                counts = [qs.filter(estado=status, fecha_creacion__date=d).count() for d in dates_qs]
-                ax.bar(dates_list, counts, bottom=bottoms, label=status, color=color)
-                bottoms = [a + b for a, b in zip(bottoms, counts)]
-            title = 'Solicitudes por fecha'
-            if fullname:
-                title += f' - {fullname}'
-            elif range_text:
-                title += f' ({range_text})'
-            ax.set_title(title, fontsize=10)
-            ax.legend(loc='upper right', fontsize=8)
-            ax.set_xticklabels(dates_list, rotation=45, ha='right', fontsize=7)
-            ax.set_ylabel('Solicitudes')
-            fig.tight_layout()
-            imgbuf = BytesIO()
-            fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=200)
-            plt.close(fig)
-            imgbuf.seek(0)
-            imgdata_requests = imgbuf
+                # stacked bar por fecha
+                statuses = [('APROBADO', '#1cc88a'), ('RECHAZADO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
+                fig, ax = plt.subplots(figsize=(6,1.6))
+                bottoms = [0] * len(dates_list)
+                for status, color in statuses:
+                    counts = [qs.filter(estado=status, fecha_creacion__date=d).count() for d in dates_qs]
+                    ax.bar(dates_list, counts, bottom=bottoms, label=status, color=color)
+                    bottoms = [a + b for a, b in zip(bottoms, counts)]
+                title = 'Solicitudes por fecha'
+                if fullname:
+                    title += f' - {fullname}'
+                elif range_text:
+                    title += f' ({range_text})'
+                ax.set_title(title, fontsize=10)
+                ax.legend(loc='upper right', fontsize=8)
+                ax.set_xticklabels(dates_list, rotation=45, ha='right', fontsize=7)
+                ax.set_ylabel('Solicitudes')
+                fig.tight_layout()
+                imgbuf = BytesIO()
+                fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=200)
+                plt.close(fig)
+                imgbuf.seek(0)
+                imgdata_requests = imgbuf
 
             # ubicaciones
             loc_counts = list(qs.values('trabajador__departamento').annotate(c=Count('id')).order_by('-c'))
