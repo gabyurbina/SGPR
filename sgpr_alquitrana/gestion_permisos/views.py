@@ -1501,11 +1501,16 @@ def exportar_estadisticas_pdf(request):
             except Exception:
                 logger.exception('PDF: error obteniendo tamaño tmp_l')
             pdf_temp_files.append(tmp_l.name)
-            img_r = ReportLabImage(tmp_r.name, width=220, height=120)
-            img_l = ReportLabImage(tmp_l.name, width=220, height=120)
+            # scale images to available document width
+            try:
+                img_w = max((doc.width - 20) / 2.0, 100)
+            except Exception:
+                img_w = 260
+            img_r = ReportLabImage(tmp_r.name, width=img_w)
+            img_l = ReportLabImage(tmp_l.name, width=img_w)
             img_r.hAlign = 'CENTER'
             img_l.hAlign = 'CENTER'
-            table_img = Table([[img_r, img_l]], colWidths=[260,260])
+            table_img = Table([[img_r, img_l]], colWidths=[img_w, img_w])
             table_img.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
             story.append(table_img)
             story.append(Spacer(1,12))
@@ -1524,7 +1529,11 @@ def exportar_estadisticas_pdf(request):
                 except Exception:
                     logger.exception('PDF: error obteniendo tamaño tmp_r')
                 pdf_temp_files.append(tmp_r.name)
-                img_r = ReportLabImage(tmp_r.name, width=300, height=120)
+                try:
+                    img_w = max(doc.width - 20, 200)
+                except Exception:
+                    img_w = 300
+                img_r = ReportLabImage(tmp_r.name, width=img_w)
                 img_r.hAlign = 'CENTER'
                 story.append(img_r)
                 story.append(Spacer(1,12))
@@ -1542,7 +1551,11 @@ def exportar_estadisticas_pdf(request):
                 except Exception:
                     logger.exception('PDF: error obteniendo tamaño tmp_l')
                 pdf_temp_files.append(tmp_l.name)
-                img_l = ReportLabImage(tmp_l.name, width=300, height=120)
+                try:
+                    img_w2 = max(doc.width - 20, 200)
+                except Exception:
+                    img_w2 = 300
+                img_l = ReportLabImage(tmp_l.name, width=img_w2)
                 img_l.hAlign = 'CENTER'
                 story.append(img_l)
                 story.append(Spacer(1,12))
@@ -1579,11 +1592,32 @@ def exportar_estadisticas_pdf(request):
             pass
 
         story.append(Spacer(1,12))
-        detail_data = [['Fecha','Tipo','Estatus','Motivo']]
+        # Detalle de solicitudes: usar Paragraphs para que el texto se ajuste y no se sobreponga
+        from reportlab.lib.styles import ParagraphStyle
+        cell_style = ParagraphStyle('detail_cell', parent=styles['Normal'], fontSize=8, leading=10)
+        header_style = ParagraphStyle('detail_header', parent=styles['Normal'], fontSize=9, leading=11, spaceAfter=4)
+        detail_data = [[Paragraph('Fecha', header_style), Paragraph('Tipo', header_style), Paragraph('Estatus', header_style), Paragraph('Motivo', header_style)]]
         for s in qs.order_by('fecha_creacion'):
             tipo_label = s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo
-            detail_data.append([s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'), tipo_label, s.estado, str(s.motivo) if s.motivo else ''])
-        detail_table = Table(detail_data, colWidths=[140,100,80,180])
+            fecha_txt = s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p')
+            motivo_txt = str(s.motivo) if s.motivo else ''
+            detail_data.append([
+                Paragraph(fecha_txt, cell_style),
+                Paragraph(tipo_label, cell_style),
+                Paragraph(s.estado or '', cell_style),
+                Paragraph(motivo_txt, cell_style),
+            ])
+        # calcular anchos de columna dinámicamente según ancho disponible
+        try:
+            avail_w = doc.width
+        except Exception:
+            from reportlab.lib.pagesizes import letter as _letter
+            avail_w = _letter[0] - doc.leftMargin - doc.rightMargin
+        col0 = 120
+        col1 = 80
+        col2 = 80
+        col3 = max(avail_w - (col0 + col1 + col2), 120)
+        detail_table = Table(detail_data, colWidths=[col0, col1, col2, col3], repeatRows=1)
         # Estilos: encabezado gris, grid, paddings, alineación y fondos alternos
         detail_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
