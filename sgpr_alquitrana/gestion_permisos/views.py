@@ -1409,6 +1409,8 @@ def exportar_estadisticas_pdf(request):
                 fig2.tight_layout()
                 imgbuf2 = BytesIO()
                 fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=200)
+                size_buf2b = len(imgbuf2.getvalue())
+                logger.info(f'PDF: created imgbuf2 (locations) size={size_buf2b}')
                 plt.close(fig2)
                 imgbuf2.seek(0)
                 imgdata_locations = imgbuf2
@@ -1434,6 +1436,8 @@ def exportar_estadisticas_pdf(request):
             imgbuf1 = BytesIO()
             fig1.tight_layout()
             fig1.savefig(imgbuf1, format='png', bbox_inches='tight', dpi=200)
+            size_buf1 = len(imgbuf1.getvalue())
+            logger.info(f'PDF: created imgbuf1 size={size_buf1}')
             plt.close(fig1)
             imgbuf1.seek(0)
             imgdata_requests = imgbuf1
@@ -1477,29 +1481,34 @@ def exportar_estadisticas_pdf(request):
             # guardar ambos a archivos temporales y luego insertarlos por ruta
             imgdata_requests.seek(0)
             tmp_r = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-            with open(tmp_r.name, 'wb') as f:
-                f.write(imgdata_requests.getvalue())
             try:
+                from PIL import Image as PilImage
+                pil_r = PilImage.open(imgdata_requests)
+                if pil_r.mode in ('RGBA','LA'):
+                    pil_r = pil_r.convert('RGB')
+                pil_r.save(tmp_r.name, format='PNG')
                 size_r = os.path.getsize(tmp_r.name)
-                if size_r > 0:
-                    logger.info(f'PDF temp image created: {tmp_r.name} size={size_r}')
-                else:
-                    logger.error(f'PDF temp image created but size=0: {tmp_r.name}')
+                logger.info(f'PDF temp image created via PIL: {tmp_r.name} size={size_r}')
             except Exception:
-                logger.exception('PDF: error obteniendo tamaño tmp_r')
+                # fallback: write raw bytes
+                logger.exception('PDF: PIL fallback writing tmp_r')
+                with open(tmp_r.name, 'wb') as f:
+                    f.write(imgdata_requests.getvalue())
             pdf_temp_files.append(tmp_r.name)
             imgdata_locations.seek(0)
             tmp_l = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-            with open(tmp_l.name, 'wb') as f:
-                f.write(imgdata_locations.getvalue())
             try:
+                from PIL import Image as PilImage
+                pil_l = PilImage.open(imgdata_locations)
+                if pil_l.mode in ('RGBA','LA'):
+                    pil_l = pil_l.convert('RGB')
+                pil_l.save(tmp_l.name, format='PNG')
                 size_l = os.path.getsize(tmp_l.name)
-                if size_l > 0:
-                    logger.info(f'PDF temp image created: {tmp_l.name} size={size_l}')
-                else:
-                    logger.error(f'PDF temp image created but size=0: {tmp_l.name}')
+                logger.info(f'PDF temp image created via PIL: {tmp_l.name} size={size_l}')
             except Exception:
-                logger.exception('PDF: error obteniendo tamaño tmp_l')
+                logger.exception('PDF: PIL fallback writing tmp_l')
+                with open(tmp_l.name, 'wb') as f:
+                    f.write(imgdata_locations.getvalue())
             pdf_temp_files.append(tmp_l.name)
             # scale images to available document width
             try:
@@ -1540,16 +1549,18 @@ def exportar_estadisticas_pdf(request):
             if imgdata_locations:
                 imgdata_locations.seek(0)
                 tmp_l = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
-                with open(tmp_l.name, 'wb') as f:
-                    f.write(imgdata_locations.getvalue())
                 try:
+                    from PIL import Image as PilImage
+                    pil_l = PilImage.open(imgdata_locations)
+                    if pil_l.mode in ('RGBA','LA'):
+                        pil_l = pil_l.convert('RGB')
+                    pil_l.save(tmp_l.name, format='PNG')
                     size_l = os.path.getsize(tmp_l.name)
-                    if size_l > 0:
-                        logger.info(f'PDF temp image created: {tmp_l.name} size={size_l}')
-                    else:
-                        logger.error(f'PDF temp image created but size=0: {tmp_l.name}')
+                    logger.info(f'PDF temp image created via PIL: {tmp_l.name} size={size_l}')
                 except Exception:
-                    logger.exception('PDF: error obteniendo tamaño tmp_l')
+                    logger.exception('PDF: PIL fallback writing tmp_l')
+                    with open(tmp_l.name, 'wb') as f:
+                        f.write(imgdata_locations.getvalue())
                 pdf_temp_files.append(tmp_l.name)
                 try:
                     img_w2 = max(doc.width - 20, 200)
