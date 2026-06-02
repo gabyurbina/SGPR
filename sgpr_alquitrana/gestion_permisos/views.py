@@ -1377,25 +1377,25 @@ def exportar_estadisticas_pdf(request):
 
     if not (imgdata_requests or imgdata_locations):
         try:
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        any_filter = bool(q or fecha_inicio or fecha_fin or ubicacion)
+            import matplotlib
+            matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+            any_filter = bool(q or fecha_inicio or fecha_fin or ubicacion)
 
-        # Información para títulos
-        fullname = ''
-        if q and qs.exists():
-            trabajador = qs.first().trabajador
-            fullname = trabajador.user.get_full_name() if trabajador else ''
-        range_text = ''
-        if fecha_inicio or fecha_fin:
-            range_text = f"{fecha_inicio or ''} - {fecha_fin or ''}"
+            # Información para títulos
+            fullname = ''
+            if q and qs.exists():
+                trabajador = qs.first().trabajador
+                fullname = trabajador.user.get_full_name() if trabajador else ''
+            range_text = ''
+            if fecha_inicio or fecha_fin:
+                range_text = f"{fecha_inicio or ''} - {fecha_fin or ''}"
 
-        # Si hay filtros (por trabajador o fechas/ubicación) mostrar serie temporal si hay fechas, sino summary
-        dates_qs = qs.dates('fecha_creacion', 'day') if qs.exists() else []
-        dates_list = [d.strftime('%d-%m-%Y') for d in dates_qs]
+            # Si hay filtros (por trabajador o fechas/ubicación) mostrar serie temporal si hay fechas, sino summary
+            dates_qs = qs.dates('fecha_creacion', 'day') if qs.exists() else []
+            dates_list = [d.strftime('%d-%m-%Y') for d in dates_qs]
 
-        if any_filter and dates_qs:
+            if any_filter and dates_qs:
             # stacked bar por fecha
             statuses = [('APROBADO', '#1cc88a'), ('RECHAZADO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
             fig, ax = plt.subplots(figsize=(6,1.6))
