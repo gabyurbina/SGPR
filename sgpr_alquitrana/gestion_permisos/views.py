@@ -1445,7 +1445,7 @@ def exportar_estadisticas_pdf(request):
                 ax.set_ylabel('Solicitudes')
                 fig.tight_layout()
                 imgbuf = BytesIO()
-                fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=150)
+                fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=120)
                 plt.close(fig)
                 imgbuf.seek(0)
                 imgdata_requests = imgbuf
@@ -1455,17 +1455,17 @@ def exportar_estadisticas_pdf(request):
                 loc_labels = [(d['trabajador__departamento'] or 'Sin Ubicación') for d in loc_counts[:10]]
                 loc_values = [d['c'] for d in loc_counts[:10]]
                 if loc_labels:
-                    fig2, ax2 = plt.subplots(figsize=(4,1.2))
+                    fig2, ax2 = plt.subplots(figsize=(4,1.0))
                     ax2.bar(loc_labels, loc_values, color=['#4e73df' if i % 2 == 0 else '#1cc88a' for i in range(len(loc_labels))])
                     loc_title = 'Distribución por ubicación'
                     if fullname:
                         loc_title += f' - {fullname}'
-                    ax2.set_title(loc_title, fontsize=10)
+                    ax2.set_title(loc_title, fontsize=9)
                     ax2.set_xticklabels(loc_labels, rotation=45, ha='right', fontsize=7)
                     ax2.set_ylabel('Solicitudes')
                     fig2.tight_layout()
                     imgbuf2 = BytesIO()
-                    fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=150)
+                    fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=120)
                     size_buf2b = len(imgbuf2.getvalue())
                     logger.info(f'PDF: created imgbuf2 (locations) size={size_buf2b}')
                     plt.close(fig2)
@@ -1491,7 +1491,7 @@ def exportar_estadisticas_pdf(request):
                     ax1.set_ylabel('Solicitudes')
                 imgbuf1 = BytesIO()
                 fig1.tight_layout()
-                fig1.savefig(imgbuf1, format='png', bbox_inches='tight', dpi=150)
+                fig1.savefig(imgbuf1, format='png', bbox_inches='tight', dpi=120)
                 size_buf1 = len(imgbuf1.getvalue())
                 logger.info(f'PDF: created imgbuf1 size={size_buf1}')
                 plt.close(fig1)
@@ -1503,12 +1503,12 @@ def exportar_estadisticas_pdf(request):
                 loc_labels = [(d['trabajador__departamento'] or 'Sin Ubicación') for d in loc_counts[:10]]
                 loc_values = [d['c'] for d in loc_counts[:10]]
                 if loc_labels:
-                    fig2, ax2 = plt.subplots(figsize=(4,1.2))
+                    fig2, ax2 = plt.subplots(figsize=(4,1.0))
                     (ax2.pie(loc_values, labels=loc_labels, autopct='%1.1f%%', colors=[('#4e73df' if i % 2 == 0 else '#1cc88a') for i in range(len(loc_labels))]) if chart_type == 'pie' else ax2.bar(loc_labels, loc_values, color=['#4e73df' if i % 2 == 0 else '#1cc88a' for i in range(len(loc_labels))]))
-                    ax2.set_title('Distribución por ubicación', fontsize=10)
+                    ax2.set_title('Distribución por ubicación', fontsize=9)
                     fig2.tight_layout()
                     imgbuf2 = BytesIO()
-                    fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=150)
+                    fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=120)
                     plt.close(fig2)
                     imgbuf2.seek(0)
                     imgdata_locations = imgbuf2
@@ -1531,7 +1531,7 @@ def exportar_estadisticas_pdf(request):
                 ax1.set_ylabel('Solicitudes')
             imgbuf1 = BytesIO()
             fig1.tight_layout()
-            fig1.savefig(imgbuf1, format='png', bbox_inches='tight', dpi=200)
+            fig1.savefig(imgbuf1, format='png', bbox_inches='tight', dpi=120)
             size_buf1 = len(imgbuf1.getvalue())
             logger.info(f'PDF: created imgbuf1 size={size_buf1}')
             plt.close(fig1)
@@ -1548,7 +1548,7 @@ def exportar_estadisticas_pdf(request):
                 ax2.set_title('Distribución por ubicación', fontsize=10)
                 fig2.tight_layout()
                 imgbuf2 = BytesIO()
-                fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=200)
+                fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=120)
                 plt.close(fig2)
                 imgbuf2.seek(0)
                 imgdata_locations = imgbuf2
@@ -1703,28 +1703,76 @@ def exportar_estadisticas_pdf(request):
         from reportlab.lib.styles import ParagraphStyle
         cell_style = ParagraphStyle('detail_cell', parent=styles['Normal'], fontSize=8, leading=10)
         header_style = ParagraphStyle('detail_header', parent=styles['Normal'], fontSize=9, leading=11, spaceAfter=4)
-        detail_data = [[Paragraph('Fecha', header_style), Paragraph('Tipo', header_style), Paragraph('Estatus', header_style), Paragraph('Motivo', header_style)]]
-        for s in qs.order_by('fecha_creacion'):
-            tipo_label = s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo
-            fecha_txt = s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p')
-            motivo_txt = str(s.motivo) if s.motivo else ''
-            detail_data.append([
-                Paragraph(fecha_txt, cell_style),
-                Paragraph(tipo_label, cell_style),
-                Paragraph(s.estado or '', cell_style),
-                Paragraph(motivo_txt, cell_style),
-            ])
-        # calcular anchos de columna dinámicamente según ancho disponible
-        try:
-            avail_w = doc.width
-        except Exception:
-            from reportlab.lib.pagesizes import letter as _letter
-            avail_w = _letter[0] - doc.leftMargin - doc.rightMargin
-        col0 = 120
-        col1 = 80
-        col2 = 80
-        col3 = max(avail_w - (col0 + col1 + col2), 120)
-        detail_table = Table(detail_data, colWidths=[col0, col1, col2, col3], repeatRows=1)
+
+        # Si el filtro es solo por fechas (sin trabajador/cedula) incluir columnas del trabajador
+        include_worker_cols = False
+        if (fecha_inicio or fecha_fin) and not q and not trabajador_id:
+            include_worker_cols = True
+
+        if include_worker_cols:
+            detail_data = [[
+                Paragraph('Fecha', header_style),
+                Paragraph('Nombres', header_style),
+                Paragraph('Apellidos', header_style),
+                Paragraph('Cédula', header_style),
+                Paragraph('Tipo', header_style),
+                Paragraph('Estatus', header_style),
+                Paragraph('Motivo', header_style),
+            ]]
+            for s in qs.order_by('fecha_creacion'):
+                tipo_label = s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo
+                fecha_txt = s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p')
+                motivo_txt = str(s.motivo) if s.motivo else ''
+                trab = getattr(s, 'trabajador', None)
+                nombres = trab.user.first_name if trab and hasattr(trab, 'user') else ''
+                apellidos = trab.user.last_name if trab and hasattr(trab, 'user') else ''
+                ced = trab.cedula if trab else ''
+                detail_data.append([
+                    Paragraph(fecha_txt, cell_style),
+                    Paragraph(nombres, cell_style),
+                    Paragraph(apellidos, cell_style),
+                    Paragraph(ced, cell_style),
+                    Paragraph(tipo_label, cell_style),
+                    Paragraph(s.estado or '', cell_style),
+                    Paragraph(motivo_txt, cell_style),
+                ])
+            # calcular anchos de columna dinámicamente según ancho disponible
+            try:
+                avail_w = doc.width
+            except Exception:
+                from reportlab.lib.pagesizes import letter as _letter
+                avail_w = _letter[0] - doc.leftMargin - doc.rightMargin
+            col0 = 100  # fecha
+            col1 = 110  # nombres
+            col2 = 110  # apellidos
+            col3 = 80   # cedula
+            col4 = 60   # tipo
+            col5 = 60   # estatus
+            col6 = max(avail_w - (col0 + col1 + col2 + col3 + col4 + col5), 120)
+            detail_table = Table(detail_data, colWidths=[col0, col1, col2, col3, col4, col5, col6], repeatRows=1)
+        else:
+            detail_data = [[Paragraph('Fecha', header_style), Paragraph('Tipo', header_style), Paragraph('Estatus', header_style), Paragraph('Motivo', header_style)]]
+            for s in qs.order_by('fecha_creacion'):
+                tipo_label = s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo
+                fecha_txt = s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p')
+                motivo_txt = str(s.motivo) if s.motivo else ''
+                detail_data.append([
+                    Paragraph(fecha_txt, cell_style),
+                    Paragraph(tipo_label, cell_style),
+                    Paragraph(s.estado or '', cell_style),
+                    Paragraph(motivo_txt, cell_style),
+                ])
+            # calcular anchos de columna dinámicamente según ancho disponible
+            try:
+                avail_w = doc.width
+            except Exception:
+                from reportlab.lib.pagesizes import letter as _letter
+                avail_w = _letter[0] - doc.leftMargin - doc.rightMargin
+            col0 = 120
+            col1 = 80
+            col2 = 80
+            col3 = max(avail_w - (col0 + col1 + col2), 120)
+            detail_table = Table(detail_data, colWidths=[col0, col1, col2, col3], repeatRows=1)
         # Estilos: encabezado gris, grid, paddings, alineación y fondos alternos
         detail_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
