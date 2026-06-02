@@ -1423,57 +1423,99 @@ def exportar_estadisticas_pdf(request):
         dates_qs = qs.dates('fecha_creacion', 'day') if qs.exists() else []
         dates_list = [d.strftime('%d-%m-%Y') for d in dates_qs]
 
-        if any_filter and dates_qs:
-            # stacked bar por fecha
-            statuses = [('APROBADO', '#1cc88a'), ('RECHAZADO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
-            fig, ax = plt.subplots(figsize=(6,1.6))
-            bottoms = [0] * len(dates_list)
-            for status, color in statuses:
-                counts = [qs.filter(estado=status, fecha_creacion__date=d).count() for d in dates_qs]
-                ax.bar(dates_list, counts, bottom=bottoms, label=status, color=color)
-                bottoms = [a + b for a, b in zip(bottoms, counts)]
-            title = 'Solicitudes por fecha'
-            if fullname:
-                title += f' - {fullname}'
-            elif range_text:
-                title += f' ({range_text})'
-            ax.set_title(title, fontsize=10)
-            ax.legend(loc='upper right', fontsize=8)
-            ax.set_xticklabels(dates_list, rotation=45, ha='right', fontsize=7)
-            ax.set_ylabel('Solicitudes')
-            fig.tight_layout()
-            imgbuf = BytesIO()
-            fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=200)
-            plt.close(fig)
-            imgbuf.seek(0)
-            imgdata_requests = imgbuf
-
-            # ubicaciones
-            loc_counts = list(qs.values('trabajador__departamento').annotate(c=Count('id')).order_by('-c'))
-            loc_labels = [(d['trabajador__departamento'] or 'Sin Ubicación') for d in loc_counts[:10]]
-            loc_values = [d['c'] for d in loc_counts[:10]]
-            if loc_labels:
-                fig2, ax2 = plt.subplots(figsize=(5,1.6))
-                ax2.bar(loc_labels, loc_values, color=['#4e73df' if i % 2 == 0 else '#1cc88a' for i in range(len(loc_labels))])
-                loc_title = 'Distribución por ubicación'
+        if any_filter:
+            # Si hay filtro y hay fechas -> serie temporal
+            if dates_qs:
+                logger.info('PDF: generating time-series chart for filtered data')
+                statuses = [('APROBADO', '#1cc88a'), ('RECHAZADO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
+                fig, ax = plt.subplots(figsize=(5,1.2))
+                bottoms = [0] * len(dates_list)
+                for status, color in statuses:
+                    counts = [qs.filter(estado=status, fecha_creacion__date=d).count() for d in dates_qs]
+                    ax.bar(dates_list, counts, bottom=bottoms, label=status, color=color)
+                    bottoms = [a + b for a, b in zip(bottoms, counts)]
+                title = 'Solicitudes por fecha'
                 if fullname:
-                    loc_title += f' - {fullname}'
-                ax2.set_title(loc_title, fontsize=10)
-                ax2.set_xticklabels(loc_labels, rotation=45, ha='right', fontsize=7)
-                ax2.set_ylabel('Solicitudes')
-                fig2.tight_layout()
-                imgbuf2 = BytesIO()
-                fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=200)
-                size_buf2b = len(imgbuf2.getvalue())
-                logger.info(f'PDF: created imgbuf2 (locations) size={size_buf2b}')
-                plt.close(fig2)
-                imgbuf2.seek(0)
-                imgdata_locations = imgbuf2
+                    title += f' - {fullname}'
+                elif range_text:
+                    title += f' ({range_text})'
+                ax.set_title(title, fontsize=10)
+                ax.legend(loc='upper right', fontsize=8)
+                ax.set_xticklabels(dates_list, rotation=45, ha='right', fontsize=7)
+                ax.set_ylabel('Solicitudes')
+                fig.tight_layout()
+                imgbuf = BytesIO()
+                fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=150)
+                plt.close(fig)
+                imgbuf.seek(0)
+                imgdata_requests = imgbuf
+
+                # ubicaciones (filtered)
+                loc_counts = list(qs.values('trabajador__departamento').annotate(c=Count('id')).order_by('-c'))
+                loc_labels = [(d['trabajador__departamento'] or 'Sin Ubicación') for d in loc_counts[:10]]
+                loc_values = [d['c'] for d in loc_counts[:10]]
+                if loc_labels:
+                    fig2, ax2 = plt.subplots(figsize=(4,1.2))
+                    ax2.bar(loc_labels, loc_values, color=['#4e73df' if i % 2 == 0 else '#1cc88a' for i in range(len(loc_labels))])
+                    loc_title = 'Distribución por ubicación'
+                    if fullname:
+                        loc_title += f' - {fullname}'
+                    ax2.set_title(loc_title, fontsize=10)
+                    ax2.set_xticklabels(loc_labels, rotation=45, ha='right', fontsize=7)
+                    ax2.set_ylabel('Solicitudes')
+                    fig2.tight_layout()
+                    imgbuf2 = BytesIO()
+                    fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=150)
+                    size_buf2b = len(imgbuf2.getvalue())
+                    logger.info(f'PDF: created imgbuf2 (locations) size={size_buf2b}')
+                    plt.close(fig2)
+                    imgbuf2.seek(0)
+                    imgdata_locations = imgbuf2
+                else:
+                    imgdata_locations = None
             else:
-                imgdata_locations = None
+                # Filtro aplicado pero no hay serie temporal: generar resumen filtrado (estados + ubicaciones)
+                logger.info('PDF: generating filtered summary charts (no dates)')
+                if chart_type == 'pie':
+                    fig1, ax1 = plt.subplots(figsize=(3,1.2))
+                    mpl_colors = ['#1cc88a', '#e74a3b', '#f6c23e']
+                    ax1.pie([aprobadas, rechazadas, pendientes], labels=['Aprobadas', 'Rechazadas', 'Pendientes'], autopct='%1.1f%%', colors=mpl_colors)
+                    ax1.set_title('Resumen por estados', fontsize=10)
+                    ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=3, fontsize=7)
+                else:
+                    fig1, ax1 = plt.subplots(figsize=(4,1.2))
+                    status_labels = ['Aprobadas', 'Rechazadas', 'Pendientes']
+                    status_vals = [aprobadas, rechazadas, pendientes]
+                    ax1.bar(status_labels, status_vals, color=['#1cc88a', '#e74a3b', '#f6c23e'])
+                    ax1.set_title('Resumen por estados', fontsize=10)
+                    ax1.set_ylabel('Solicitudes')
+                imgbuf1 = BytesIO()
+                fig1.tight_layout()
+                fig1.savefig(imgbuf1, format='png', bbox_inches='tight', dpi=150)
+                size_buf1 = len(imgbuf1.getvalue())
+                logger.info(f'PDF: created imgbuf1 size={size_buf1}')
+                plt.close(fig1)
+                imgbuf1.seek(0)
+                imgdata_requests = imgbuf1
+
+                # Gráfico 2: ubicaciones (top 10) filtradas
+                loc_counts = list(qs.values('trabajador__departamento').annotate(c=Count('id')).order_by('-c'))
+                loc_labels = [(d['trabajador__departamento'] or 'Sin Ubicación') for d in loc_counts[:10]]
+                loc_values = [d['c'] for d in loc_counts[:10]]
+                if loc_labels:
+                    fig2, ax2 = plt.subplots(figsize=(4,1.2))
+                    (ax2.pie(loc_values, labels=loc_labels, autopct='%1.1f%%', colors=[('#4e73df' if i % 2 == 0 else '#1cc88a') for i in range(len(loc_labels))]) if chart_type == 'pie' else ax2.bar(loc_labels, loc_values, color=['#4e73df' if i % 2 == 0 else '#1cc88a' for i in range(len(loc_labels))]))
+                    ax2.set_title('Distribución por ubicación', fontsize=10)
+                    fig2.tight_layout()
+                    imgbuf2 = BytesIO()
+                    fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=150)
+                    plt.close(fig2)
+                    imgbuf2.seek(0)
+                    imgdata_locations = imgbuf2
+                else:
+                    imgdata_locations = None
         else:
             # Resumen global (no filtros relevantes): gráfico de estados y ubicaciones
-            # Gráfico 1: resumen por estados (pie o bar según chart_type)
             if chart_type == 'pie':
                 fig1, ax1 = plt.subplots(figsize=(3,1.4))
                 mpl_colors = ['#1cc88a', '#e74a3b', '#f6c23e']
@@ -1564,10 +1606,10 @@ def exportar_estadisticas_pdf(request):
             # scale images to available document width
             try:
                 print('DEBUG: doc.width =', getattr(doc, 'width', 'UNKNOWN'))
-                img_w = min(max((getattr(doc, 'width', 400) - 40) / 2.0, 120), 320)
+                img_w = min(max((getattr(doc, 'width', 400) - 40) / 2.0, 100), 200)
             except Exception as e:
                 print('DEBUG: error computing img_w', e)
-                img_w = 260
+                img_w = 180
             print('DEBUG: writing images to', tmp_r.name, tmp_l.name)
             img_r = ReportLabImage(tmp_r.name, width=img_w)
             img_l = ReportLabImage(tmp_l.name, width=img_w)
@@ -1593,7 +1635,7 @@ def exportar_estadisticas_pdf(request):
                     logger.exception('PDF: error obteniendo tamaño tmp_r')
                 pdf_temp_files.append(tmp_r.name)
                 try:
-                    img_w = min(max(getattr(doc, 'width', 400) - 40, 200), 480)
+                    img_w = min(max(getattr(doc, 'width', 400) - 40, 160), 360)
                 except Exception:
                     img_w = 300
                 img_r = ReportLabImage(tmp_r.name, width=img_w)
