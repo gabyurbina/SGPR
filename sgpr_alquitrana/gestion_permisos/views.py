@@ -1647,16 +1647,20 @@ def exportar_estadisticas_pdf(request):
 
     doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
     buffer.seek(0)
-    # eliminar archivos temporales usados por PDF
+    # DEBUG: during troubleshooting, keep temporary PNG files so user can inspect them
     try:
         import os
-        for _f in pdf_temp_files:
-            try:
-                os.remove(_f)
-            except Exception:
-                pass
+        if pdf_temp_files:
+            logger.warning('Debug: keeping PDF temporary image files (not deleting):')
+            for _f in pdf_temp_files:
+                try:
+                    logger.warning(f'  {_f}')
+                except Exception:
+                    pass
+        else:
+            logger.info('No PDF temp files were created')
     except Exception:
-        pass
+        logger.exception('Error while listing pdf_temp_files')
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%I%M%S')
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename=estadisticas_{timestamp}.pdf'
