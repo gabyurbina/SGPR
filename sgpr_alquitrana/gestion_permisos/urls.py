@@ -22,7 +22,8 @@ urlpatterns = [
     path('auditoria/descargar/pdf/', views.exportar_auditoria_pdf, name='exportar_auditoria_pdf'),
     path('estadisticas/', views.estadisticas, name='estadisticas'),
     path('estadisticas/data/', views.estadisticas_data, name='estadisticas_data'),
-    path('estadisticas/descargar/xlsx/', views.exportar_estadisticas_excel, name='exportar_estadisticas_excel'),
+    path('estadisticas/trabajadores/buscar/', views.buscar_trabajadores, name='buscar_trabajadores'),
+    # Excel export removed for estadisticas per request
     path('estadisticas/descargar/pdf/', views.exportar_estadisticas_pdf, name='exportar_estadisticas_pdf'),
     path('trabajadores/descargar/xlsx/', views.exportar_trabajadores_excel, name='exportar_trabajadores_excel'),
     path('trabajadores/descargar/pdf/', views.exportar_trabajadores_pdf, name='exportar_trabajadores_pdf'),

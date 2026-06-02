@@ -7,7 +7,6 @@
   </div>
   <div class="d-flex gap-2">
     {% with qs=request.GET.urlencode %}
-      <a id="export-xlsx" class="btn btn-outline-secondary" href="{% url 'exportar_estadisticas_excel' %}{% if qs %}?{{ qs }}{% endif %}">Descargar XLSX</a>
       <a id="export-pdf" class="btn btn-outline-secondary" href="{% url 'exportar_estadisticas_pdf' %}{% if qs %}?{{ qs }}{% endif %}">Descargar PDF</a>
     {% endwith %}
   </div>
@@ -25,16 +24,16 @@
   <div class="col-md-3">
     <label class="visually-hidden" for="cedula">Cédula</label>
     <input type="text" id="cedula" name="q" placeholder="Cédula (opcional)" class="form-control" value="{{ request.GET.q|default:'' }}">
+    <input type="hidden" id="trabajador_id" name="trabajador_id" value="{{ request.GET.trabajador_id|default:'' }}">
   </div>
-  <div class="col-md-3">
-    <label class="visually-hidden" for="ubicacion">Ubicación Administrativa</label>
-    <input type="text" id="ubicacion" name="ubicacion" placeholder="Ubicación administrativa (opcional)" class="form-control" value="{{ request.GET.ubicacion|default:'' }}">
+  <div class="col-md-3 position-relative">
+    <label class="visually-hidden" for="nombre">Nombre/Apellidos</label>
+    <input type="text" id="nombre" placeholder="Buscar por nombre o apellidos" class="form-control" value="">
+    <div id="worker-search-results" class="list-group position-absolute" style="z-index:2000; max-height:240px; overflow:auto; display:none; width:100%;"></div>
   </div>
   <div class="col-md-1">
-    <select id="chart_type" name="chart_type" class="form-select">
-      <option value="pie" {% if request.GET.chart_type == 'pie' %}selected{% endif %}>Circular</option>
-      <option value="bar" {% if request.GET.chart_type == 'bar' %}selected{% endif %}>Barras</option>
-    </select>
+    <label class="visually-hidden" for="ubicacion">Ubicación Administrativa</label>
+    <input type="text" id="ubicacion" name="ubicacion" placeholder="Ubicación administrativa (opcional)" class="form-control" value="{{ request.GET.ubicacion|default:'' }}">
   </div>
   <div class="col-md-1 d-grid">
     <button type="submit" class="btn btn-secondary">Aplicar</button>
@@ -42,9 +41,9 @@
 </form>
 
 <style>
-  .stats-row { display:flex; gap:20px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
-  .stats-canvas { flex: 1 1 45%; max-width: 48%; min-width:280px; }
-  .stats-canvas canvas { width:100% !important; height:auto !important; }
+  .stats-row { display:flex; gap:12px; justify-content:center; align-items:flex-start; flex-wrap:wrap; }
+  .stats-canvas { flex: 1 1 40%; max-width: 45%; min-width:220px; }
+  .stats-canvas canvas { width:100% !important; max-height:220px !important; height:auto !important; }
 </style>
 
 <div class="stats-row mb-4">
@@ -60,6 +59,47 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+async function searchWorkers(query) {
+  if(!query || query.length < 2) return {results: []};
+  const resp = await fetch('{% url "buscar_trabajadores" %}?q='+encodeURIComponent(query));
+  const json = await resp.json();
+  console.log('searchWorkers', query, (json && json.results) ? json.results.length : 0);
+  return json;
+}
+
+let _searchTimer = null;
+function debounceSearch(q) {
+  if(_searchTimer) clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(async ()=>{
+    const data = await searchWorkers(q);
+    console.log('debounceSearch results', data);
+    const container = document.getElementById('worker-search-results');
+    container.innerHTML = '';
+    if(data && data.results && data.results.length){
+      data.results.forEach(w=>{
+        const a = document.createElement('a');
+        a.href = '#';
+        a.className = 'list-group-item list-group-item-action';
+        a.textContent = `${w.full_name} — ${w.cedula}`;
+        a.dataset.id = w.id;
+        a.dataset.cedula = w.cedula;
+        a.addEventListener('click', function(e){
+          e.preventDefault();
+          console.log('worker selected', this.dataset.id, this.dataset.cedula);
+          document.getElementById('cedula').value = this.dataset.cedula;
+          document.getElementById('trabajador_id').value = this.dataset.id;
+          container.style.display='none';
+          renderChart();
+        });
+        container.appendChild(a);
+      });
+      container.style.display = '';
+    } else {
+      container.style.display = 'none';
+    }
+  }, 350);
+}
+
 async function fetchData(params) {
   const q = new URLSearchParams(params).toString();
   const resp = await fetch('{% url "estadisticas_data" %}?'+q);
@@ -86,6 +126,13 @@ async function renderChart() {
   if(window._statsChartLoc) window._statsChartLoc.destroy();
   const type = params.chart_type || 'pie';
 
+  // Construir título según filtros
+  let titleParts = [];
+  if (params.q) titleParts.push('Trabajador: ' + params.q);
+  if (params.fecha_inicio || params.fecha_fin) titleParts.push((params.fecha_inicio||'') + ' - ' + (params.fecha_fin||''));
+  if (params.ubicacion) titleParts.push('Ubicación: ' + params.ubicacion);
+  const chartTitle = titleParts.length ? titleParts.join(' | ') : 'Estadísticas de solicitudes';
+
   if (data.datasets) {
     // filtered by trabajador: single chart (as before) and detail
     if (type === 'pie') {
@@ -94,7 +141,7 @@ async function renderChart() {
       window._statsChart = new Chart(ctx, {
         type: 'pie',
         data: { labels: statusLabels, datasets: [{ data: statusValues, backgroundColor: data.datasets.map(ds=>ds.color||'#4e73df') }] },
-        options: {responsive:true, plugins: {legend: {position: 'bottom'}}}
+        options: {responsive:true, plugins: { title: { display: true, text: chartTitle, font: { size: 12 } }, legend: {position: 'bottom'} } }
       });
       document.getElementById('stats-detail').innerHTML = renderDetailTable(data.detail || []);
       // hide locations canvas for worker filter
@@ -105,7 +152,7 @@ async function renderChart() {
       window._statsChart = new Chart(ctx, {
         type: 'bar',
         data: { labels: labels, datasets: datasets },
-        options: {responsive:true, plugins: {legend: {position: 'bottom'}}, scales: { x: { stacked: true }, y: { stacked: true } }}
+        options: {responsive:true, plugins: { title: { display: true, text: chartTitle, font: { size: 12 } }, legend: {position: 'bottom'}}, scales: { x: { stacked: true }, y: { stacked: true } }}
       });
       document.getElementById('stats-detail').innerHTML = renderDetailTable(data.detail || []);
       document.getElementById('statsChartLocations').parentElement.style.display = 'none';
@@ -122,7 +169,7 @@ async function renderChart() {
         labels: labels,
         datasets: [{ label: 'Solicitudes', data: values, backgroundColor: ['#4e73df','#1cc88a','#e74a3b','#f6c23e'] }]
       },
-      options: {responsive:true, plugins: {legend: {position: 'bottom'}}}
+      options: {responsive:true, plugins: { title: { display: true, text: chartTitle, font: { size: 12 } }, legend: {position: 'bottom'}}}
     });
     // locations chart
     if (data.locations && data.locations.labels && data.locations.labels.length>0) {
@@ -131,13 +178,13 @@ async function renderChart() {
         window._statsChartLoc = new Chart(ctxLoc, {
           type: 'pie',
           data: { labels: data.locations.labels, datasets: [{ data: data.locations.values, backgroundColor: data.locations.labels.map((_,i)=> i%2==0? '#4e73df':'#1cc88a') }] },
-          options: {responsive:true, plugins: {legend: {position: 'bottom'}}}
+          options: {responsive:true, plugins: { title: { display: true, text: chartTitle + ' — Ubicaciones', font: { size: 12 } }, legend: {position: 'bottom'}}}
         });
       } else {
         window._statsChartLoc = new Chart(ctxLoc, {
           type: 'bar',
           data: { labels: data.locations.labels, datasets: [{ label: 'Solicitudes por ubicación', data: data.locations.values, backgroundColor: data.locations.labels.map((_,i)=> i%2==0? '#4e73df':'#1cc88a') }] },
-          options: {responsive:true, plugins: {legend: {position: 'bottom'}}, scales: { x: { ticks: {autoSkip: false} } }}
+          options: {responsive:true, plugins: { title: { display: true, text: chartTitle + ' — Ubicaciones', font: { size: 12 } }, legend: {position: 'bottom'}}, scales: { x: { ticks: {autoSkip: false} } }}
         });
       }
     } else {
@@ -146,11 +193,23 @@ async function renderChart() {
     document.getElementById('stats-detail').innerHTML = '';
   }
 
-  // Update export links
+  // Update export link
   const qs = new URLSearchParams(params).toString();
-  document.getElementById('export-xlsx').href = '{% url "exportar_estadisticas_excel" %}' + (qs?('?'+qs):'');
   document.getElementById('export-pdf').href = '{% url "exportar_estadisticas_pdf" %}' + (qs?('?'+qs):'');
 }
+
+// bind worker search input
+const nombreInput = document.getElementById('nombre');
+const workerResults = document.getElementById('worker-search-results');
+if(nombreInput){
+  nombreInput.addEventListener('input', (e)=> debounceSearch(e.target.value));
+}
+// hide results when clicking outside
+document.addEventListener('click', function(e){
+  if(!workerResults) return;
+  if(e.target === nombreInput || workerResults.contains(e.target)) return;
+  workerResults.style.display = 'none';
+});
 
 document.getElementById('stats-form').addEventListener('submit', function(e){
   e.preventDefault(); renderChart();

@@ -1,5 +1,4 @@
 """Modelos de datos para SGPR: Trabajador, Solicitud y Auditoria.
-Código sencillo y comentado para principiantes.
 """
 from django.db import models
 from django.contrib.auth.models import User

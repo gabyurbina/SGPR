@@ -4,6 +4,8 @@ psycopg2-binary
 dj-database-url
 whitenoise
 openpyxl
+matplotlib
+Pillow
 reportlab
 cryptography
 argon2-cffi

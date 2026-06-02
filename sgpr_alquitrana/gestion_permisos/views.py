@@ -43,6 +43,7 @@ from .forms import (
 from .models import Auditoria, Solicitud, Trabajador
 import logging
 logger = logging.getLogger(__name__)
+from .extra_views import vista_estadisticas
 
 
 def get_encabezado_path():
@@ -1283,230 +1284,25 @@ def estadisticas_data(request):
 
 @login_required
 @user_passes_test(es_gestion_humana)
-def exportar_estadisticas_excel(request):
-    """Exportar estadísticas a Excel (incluye imagen del gráfico si matplotlib está disponible)."""
+def buscar_trabajadores(request):
+    """Buscar trabajadores por nombre, apellido o cédula (devuelve JSON con id, nombre completo y cédula)."""
     q = request.GET.get('q', '').strip()
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin = request.GET.get('fecha_fin')
-    ubicacion = request.GET.get('ubicacion', '').strip()
-    chart_type = request.GET.get('chart_type', 'pie')
-
-    qs = Solicitud.objects.select_related('trabajador').all()
+    results = []
     if q:
-        qs = qs.filter(trabajador__cedula__icontains=q)
-    if ubicacion:
-        qs = qs.filter(trabajador__departamento__icontains=ubicacion)
-    if fecha_inicio:
         try:
-            fi = datetime.datetime.strptime(fecha_inicio, '%Y-%m-%d')
-            qs = qs.filter(fecha_creacion__date__gte=fi.date())
+            workers_qs = Trabajador.objects.select_related('user').filter(
+                Q(user__first_name__icontains=q) | Q(user__last_name__icontains=q) | Q(cedula__icontains=q)
+            ).order_by('user__last_name')[:50]
+            for t in workers_qs:
+                results.append({'id': t.id, 'full_name': t.user.get_full_name(), 'cedula': t.cedula})
         except Exception:
-            pass
-    if fecha_fin:
-        try:
-            ff = datetime.datetime.strptime(fecha_fin, '%Y-%m-%d')
-            qs = qs.filter(fecha_creacion__date__lte=ff.date())
-        except Exception:
-            pass
-
-    total = qs.count()
-    aprobadas = qs.filter(estado='APROBADO').count()
-    rechazadas = qs.filter(estado='RECHAZADO').count()
-    pendientes = qs.filter(estado='PENDIENTE').count()
-
-    # Crear workbook
-    workbook = Workbook()
-    hoja = workbook.active
-    hoja.title = 'Estadísticas'
-
-    # Encabezado de metadatos
-    now = datetime.datetime.now()
-    generated_at = now.strftime('%d-%m-%Y %I:%M:%S %p').replace('AM','a.m.').replace('PM','p.m.')
-    add_excel_header_image(hoja, workbook)
-
-    # Si filtra por trabajador, añadir nombre y cédula (sin la palabra 'Rango')
-    if q and qs.exists():
-        trabajador = qs.first().trabajador
-        fullname = trabajador.user.get_full_name() if trabajador else ''
-        cedula_val = trabajador.cedula if trabajador else ''
-        hoja.append(['Reporte del trabajador:', fullname, '', 'Cédula:', cedula_val])
-    # Fecha de elaboración
-    hoja.append(['Fecha de elaboración:', '', '', '', generated_at])
-    hoja.append([])
+            logger.exception('Error buscando trabajadores')
+    return JsonResponse({'results': results})
 
 
-    # Aplicar formato simple: ancho de columnas y negrita en encabezados
-    try:
-        from openpyxl.styles import Font, Alignment
-        from openpyxl.utils import get_column_letter
-        bold = Font(bold=True)
-        hoja['A1'].font = bold
-        hoja['A1'].alignment = Alignment(horizontal='left')
-        # ajustar anchuras útiles
-        hoja.column_dimensions[get_column_letter(1)].width = 20
-        hoja.column_dimensions[get_column_letter(2)].width = 40
-        hoja.column_dimensions[get_column_letter(3)].width = 5
-        hoja.column_dimensions[get_column_letter(4)].width = 15
-        hoja.column_dimensions[get_column_letter(5)].width = 25
-    except Exception:
-        pass
 
-    # Si se aplicó cualquier filtro o no (decidir comportamiento de gráficos para Excel)
-    try:
-        import matplotlib
-        matplotlib.use('Agg')
-        import matplotlib.pyplot as plt
-        from openpyxl.drawing.image import Image as ExcelImage
 
-        any_filter = bool(q or fecha_inicio or fecha_fin or ubicacion)
 
-        # preparar títulos y nombre de trabajador si aplica
-        fullname = ''
-        if q and qs.exists():
-            trabajador = qs.first().trabajador
-            fullname = trabajador.user.get_full_name() if trabajador else ''
-        range_text = ''
-        if fecha_inicio or fecha_fin:
-            range_text = f"{fecha_inicio or ''} - {fecha_fin or ''}"
-
-        if any_filter and (q or fecha_inicio or fecha_fin):
-            # filtrado con criterios: mostrar serie temporal si hay fechas + ubicaciones
-            dates_qs = qs.dates('fecha_creacion', 'day')
-            labels = [d.strftime('%d-%m-%Y') for d in dates_qs]
-            statuses = [('APROBADO', '#1cc88a'), ('RECHAZADO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
-            width = 6
-            fig, ax = plt.subplots(figsize=(width,1.6))
-            bottoms = [0]*len(labels)
-            for status, color in statuses:
-                counts = [qs.filter(estado=status, fecha_creacion__date=d).count() for d in dates_qs]
-                ax.bar(labels, counts, bottom=bottoms, label=status, color=color)
-                bottoms = [a+b for a,b in zip(bottoms, counts)]
-            title = 'Solicitudes por fecha'
-            if fullname:
-                title += f' - {fullname}'
-            elif range_text:
-                title += f' ({range_text})'
-            ax.set_title(title, fontsize=10)
-            ax.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=3, fontsize=8)
-            ax.set_xticklabels(labels, rotation=45, ha='right', fontsize=8)
-            ax.set_ylabel('Solicitudes')
-            fig.tight_layout()
-            imgbuf = BytesIO()
-            fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=120)
-            plt.close(fig)
-            imgbuf.seek(0)
-            # insertar imagen principal (requests) en D2
-            try:
-                from PIL import Image as PilImage
-                pil_img = PilImage.open(imgbuf)
-                # reducir tamaño de la imagen para Excel
-                pil_img.thumbnail((360,140), PilImage.Resampling.LANCZOS)
-                hoja.add_image(ExcelImage(pil_img), 'D2')
-            except Exception:
-                logger.exception('Excel: fallo al abrir/insertar imagen (worker chart)')
-                try:
-                    imgbuf.seek(0)
-                    hoja.add_image(ExcelImage(imgbuf), 'D2')
-                except Exception:
-                    logger.exception('Excel: fallo al insertar imagen desde BytesIO (worker chart)')
-
-            # detalle de solicitudes (sin mostrar cédula) - incluir tipo y motivo con mejor formato
-            hoja.append([])
-            hoja.append(['Fecha', 'Tipo', 'Estatus', 'Motivo'])
-            for s in qs.order_by('fecha_creacion'):
-                hoja.append([s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'), s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo, s.estado, str(s.motivo) if s.motivo else ''])
-            # aplicar ancho de columnas y ajuste de texto para motivo
-            try:
-                from openpyxl.utils import get_column_letter
-                hoja.column_dimensions[get_column_letter(1)].width = 20
-                hoja.column_dimensions[get_column_letter(2)].width = 25
-                hoja.column_dimensions[get_column_letter(3)].width = 15
-                hoja.column_dimensions[get_column_letter(4)].width = 60
-                # aplicar wrap y alineación a la columna motivo
-                for row in range(1, hoja.max_row+1):
-                    cell = hoja.cell(row=row, column=4)
-                    cell.alignment = Alignment(wrap_text=True, vertical='top')
-            except Exception:
-                logger.exception('Excel: fallo aplicando ancho/align en columna motivo')
-
-        else:
-            # producir dos gráficos según chart_type
-            # Gráfico 1: resumen por estados
-            if chart_type == 'pie':
-                fig1, ax1 = plt.subplots(figsize=(3,1.4))
-                colors = ['#1cc88a','#e74a3b','#f6c23e']
-                ax1.pie([aprobadas, rechazadas, pendientes], labels=['Aprobadas','Rechazadas','Pendientes'], autopct='%1.1f%%', colors=colors)
-                ax1.set_title('Resumen por estados', fontsize=10)
-                ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=3, fontsize=8)
-            else:
-                fig1, ax1 = plt.subplots(figsize=(5,1.6))
-                status_labels = ['Aprobadas','Rechazadas','Pendientes']
-                status_vals = [aprobadas, rechazadas, pendientes]
-                ax1.bar(status_labels, status_vals, color=['#1cc88a','#e74a3b','#f6c23e'])
-                ax1.set_title('Resumen por estados', fontsize=10)
-                ax1.set_ylabel('Solicitudes')
-            imgbuf1 = BytesIO()
-            fig1.tight_layout()
-            fig1.savefig(imgbuf1, format='png', bbox_inches='tight', dpi=120)
-            plt.close(fig1)
-            imgbuf1.seek(0)
-
-            # Gráfico 2: ubicaciones (top 10) - pie o bar según selección
-            loc_counts = list(qs.values('trabajador__departamento').annotate(c=Count('id')).order_by('-c'))
-            loc_labels = [(d['trabajador__departamento'] or 'Sin Ubicación') for d in loc_counts[:10]]
-            loc_values = [d['c'] for d in loc_counts[:10]]
-            if loc_labels:
-                if chart_type == 'pie':
-                    fig2, ax2 = plt.subplots(figsize=(5,1.6))
-                    ax2.pie(loc_values, labels=loc_labels, autopct='%1.1f%%', colors=[('#4e73df' if i%2==0 else '#1cc88a') for i in range(len(loc_labels))])
-                    ax2.set_title('Distribución por ubicación', fontsize=10)
-                    ax2.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=3, fontsize=8)
-                else:
-                    fig2, ax2 = plt.subplots(figsize=(5,1.6))
-                    colors2 = ['#4e73df' if i%2==0 else '#1cc88a' for i in range(len(loc_labels))]
-                    ax2.bar(loc_labels, loc_values, color=colors2)
-                    ax2.set_title('Distribución por ubicación', fontsize=10)
-                    ax2.set_xticklabels(loc_labels, rotation=45, ha='right', fontsize=8)
-                    ax2.set_ylabel('Solicitudes')
-                imgbuf2 = BytesIO()
-                fig2.tight_layout()
-                fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=150)
-                plt.close(fig2)
-                imgbuf2.seek(0)
-            else:
-                imgbuf2 = None
-
-            # Insertar imágenes en Excel: requests en D2, ubicaciones en H2 (lado a lado)
-            try:
-                from PIL import Image as PilImage
-                pil1 = PilImage.open(imgbuf1)
-                pil1.thumbnail((300,140), PilImage.Resampling.LANCZOS)
-                hoja.add_image(ExcelImage(pil1), 'D2')
-                if imgbuf2:
-                    pil2 = PilImage.open(imgbuf2)
-                    pil2.thumbnail((300,140), PilImage.Resampling.LANCZOS)
-                    hoja.add_image(ExcelImage(pil2), 'H2')
-            except Exception:
-                logger.exception('Excel: fallo al insertar imágenes de resumen/ubicaciones')
-
-    except Exception as e:
-        logger.exception('Excel: error general al generar estadisticas xlsx')
-
-    # Insertar resumen (métricas) debajo de los gráficos
-    hoja.append([])
-    hoja.append(['Métrica', 'Valor'])
-    hoja.append(['Total solicitudes', total])
-    hoja.append(['Aprobadas', aprobadas])
-    hoja.append(['Rechazadas', rechazadas])
-    hoja.append(['Pendientes', pendientes])
-
-    salida = BytesIO()
-    workbook.save(salida)
-    salida.seek(0)
-    timestamp = now.strftime('%Y%m%d_%I%M%S')
-    response = HttpResponse(salida.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename=estadisticas_{timestamp}.xlsx'
-    return response
 
 
 @login_required
@@ -1514,14 +1310,22 @@ def exportar_estadisticas_excel(request):
 def exportar_estadisticas_pdf(request):
     """Exportar estadísticas a PDF (incrusta imagen del gráfico)."""
     q = request.GET.get('q', '').strip()
+    trabajador_id = request.GET.get('trabajador_id')
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
     ubicacion = request.GET.get('ubicacion', '').strip()
     chart_type = request.GET.get('chart_type', 'pie')
 
     qs = Solicitud.objects.select_related('trabajador').all()
-    if q:
-        qs = qs.filter(trabajador__cedula__icontains=q)
+    # Prefer explicit trabajador_id (selection via search). Fallback to cedula query.
+    if trabajador_id:
+        try:
+            qs = qs.filter(trabajador__id=int(trabajador_id))
+        except Exception:
+            pass
+    else:
+        if q:
+            qs = qs.filter(trabajador__cedula__icontains=q)
     if ubicacion:
         qs = qs.filter(trabajador__departamento__icontains=ubicacion)
     if fecha_inicio:
@@ -1584,7 +1388,7 @@ def exportar_estadisticas_pdf(request):
             ax.set_ylabel('Solicitudes')
             fig.tight_layout()
             imgbuf = BytesIO()
-            fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=120)
+            fig.savefig(imgbuf, format='png', bbox_inches='tight', dpi=200)
             plt.close(fig)
             imgbuf.seek(0)
             imgdata_requests = imgbuf
@@ -1604,7 +1408,7 @@ def exportar_estadisticas_pdf(request):
                 ax2.set_ylabel('Solicitudes')
                 fig2.tight_layout()
                 imgbuf2 = BytesIO()
-                fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=120)
+                fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=200)
                 plt.close(fig2)
                 imgbuf2.seek(0)
                 imgdata_locations = imgbuf2
@@ -1616,8 +1420,8 @@ def exportar_estadisticas_pdf(request):
             # Gráfico 1: resumen por estados (pie o bar según chart_type)
             if chart_type == 'pie':
                 fig1, ax1 = plt.subplots(figsize=(3,1.4))
-                colors = ['#1cc88a', '#e74a3b', '#f6c23e']
-                ax1.pie([aprobadas, rechazadas, pendientes], labels=['Aprobadas', 'Rechazadas', 'Pendientes'], autopct='%1.1f%%', colors=colors)
+                mpl_colors = ['#1cc88a', '#e74a3b', '#f6c23e']
+                ax1.pie([aprobadas, rechazadas, pendientes], labels=['Aprobadas', 'Rechazadas', 'Pendientes'], autopct='%1.1f%%', colors=mpl_colors)
                 ax1.set_title('Resumen por estados', fontsize=10)
                 ax1.legend(loc='lower center', bbox_to_anchor=(0.5, -0.3), ncol=3, fontsize=7)
             else:
@@ -1629,7 +1433,7 @@ def exportar_estadisticas_pdf(request):
                 ax1.set_ylabel('Solicitudes')
             imgbuf1 = BytesIO()
             fig1.tight_layout()
-            fig1.savefig(imgbuf1, format='png', bbox_inches='tight', dpi=120)
+            fig1.savefig(imgbuf1, format='png', bbox_inches='tight', dpi=200)
             plt.close(fig1)
             imgbuf1.seek(0)
             imgdata_requests = imgbuf1
@@ -1644,7 +1448,7 @@ def exportar_estadisticas_pdf(request):
                 ax2.set_title('Distribución por ubicación', fontsize=10)
                 fig2.tight_layout()
                 imgbuf2 = BytesIO()
-                fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=120)
+                fig2.savefig(imgbuf2, format='png', bbox_inches='tight', dpi=200)
                 plt.close(fig2)
                 imgbuf2.seek(0)
                 imgdata_locations = imgbuf2
@@ -1666,11 +1470,39 @@ def exportar_estadisticas_pdf(request):
 
     # Añadir imágenes si existen: intentar colocarlas lado a lado si hay dos
     story.append(Spacer(1,12))
+    pdf_temp_files = []
     try:
+        import tempfile, os
         if imgdata_requests and imgdata_locations:
-            # crear dos ReportLab Image y ponerlos en una tabla de dos columnas
-            img_r = ReportLabImage(imgdata_requests, width=220, height=120)
-            img_l = ReportLabImage(imgdata_locations, width=220, height=120)
+            # guardar ambos a archivos temporales y luego insertarlos por ruta
+            imgdata_requests.seek(0)
+            tmp_r = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+            with open(tmp_r.name, 'wb') as f:
+                f.write(imgdata_requests.getvalue())
+            try:
+                size_r = os.path.getsize(tmp_r.name)
+                if size_r > 0:
+                    logger.info(f'PDF temp image created: {tmp_r.name} size={size_r}')
+                else:
+                    logger.error(f'PDF temp image created but size=0: {tmp_r.name}')
+            except Exception:
+                logger.exception('PDF: error obteniendo tamaño tmp_r')
+            pdf_temp_files.append(tmp_r.name)
+            imgdata_locations.seek(0)
+            tmp_l = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+            with open(tmp_l.name, 'wb') as f:
+                f.write(imgdata_locations.getvalue())
+            try:
+                size_l = os.path.getsize(tmp_l.name)
+                if size_l > 0:
+                    logger.info(f'PDF temp image created: {tmp_l.name} size={size_l}')
+                else:
+                    logger.error(f'PDF temp image created but size=0: {tmp_l.name}')
+            except Exception:
+                logger.exception('PDF: error obteniendo tamaño tmp_l')
+            pdf_temp_files.append(tmp_l.name)
+            img_r = ReportLabImage(tmp_r.name, width=220, height=120)
+            img_l = ReportLabImage(tmp_l.name, width=220, height=120)
             img_r.hAlign = 'CENTER'
             img_l.hAlign = 'CENTER'
             table_img = Table([[img_r, img_l]], colWidths=[260,260])
@@ -1679,12 +1511,38 @@ def exportar_estadisticas_pdf(request):
             story.append(Spacer(1,12))
         else:
             if imgdata_requests:
-                img_r = ReportLabImage(imgdata_requests, width=300, height=120)
+                imgdata_requests.seek(0)
+                tmp_r = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                with open(tmp_r.name, 'wb') as f:
+                    f.write(imgdata_requests.getvalue())
+                try:
+                    size_r = os.path.getsize(tmp_r.name)
+                    if size_r > 0:
+                        logger.info(f'PDF temp image created: {tmp_r.name} size={size_r}')
+                    else:
+                        logger.error(f'PDF temp image created but size=0: {tmp_r.name}')
+                except Exception:
+                    logger.exception('PDF: error obteniendo tamaño tmp_r')
+                pdf_temp_files.append(tmp_r.name)
+                img_r = ReportLabImage(tmp_r.name, width=300, height=120)
                 img_r.hAlign = 'CENTER'
                 story.append(img_r)
                 story.append(Spacer(1,12))
             if imgdata_locations:
-                img_l = ReportLabImage(imgdata_locations, width=300, height=120)
+                imgdata_locations.seek(0)
+                tmp_l = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
+                with open(tmp_l.name, 'wb') as f:
+                    f.write(imgdata_locations.getvalue())
+                try:
+                    size_l = os.path.getsize(tmp_l.name)
+                    if size_l > 0:
+                        logger.info(f'PDF temp image created: {tmp_l.name} size={size_l}')
+                    else:
+                        logger.error(f'PDF temp image created but size=0: {tmp_l.name}')
+                except Exception:
+                    logger.exception('PDF: error obteniendo tamaño tmp_l')
+                pdf_temp_files.append(tmp_l.name)
+                img_l = ReportLabImage(tmp_l.name, width=300, height=120)
                 img_l.hAlign = 'CENTER'
                 story.append(img_l)
                 story.append(Spacer(1,12))
@@ -1697,7 +1555,7 @@ def exportar_estadisticas_pdf(request):
     story.append(table)
 
     # Si filtrado por trabajador, añadir encabezado con nombre y rango y detalle de solicitudes (fecha, tipo, estatus)
-    if q:
+    if q or trabajador_id:
         # intentar obtener información del trabajador
         trabajador = None
         if qs.exists():
@@ -1741,6 +1599,16 @@ def exportar_estadisticas_pdf(request):
 
     doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
     buffer.seek(0)
+    # eliminar archivos temporales usados por PDF
+    try:
+        import os
+        for _f in pdf_temp_files:
+            try:
+                os.remove(_f)
+            except Exception:
+                pass
+    except Exception:
+        pass
     timestamp = datetime.datetime.now().strftime('%Y%m%d_%I%M%S')
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename=estadisticas_{timestamp}.pdf'
