@@ -1512,9 +1512,12 @@ def exportar_estadisticas_pdf(request):
             pdf_temp_files.append(tmp_l.name)
             # scale images to available document width
             try:
+                print('DEBUG: doc.width =', getattr(doc, 'width', 'UNKNOWN'))
                 img_w = max((doc.width - 20) / 2.0, 100)
-            except Exception:
+            except Exception as e:
+                print('DEBUG: error computing img_w', e)
                 img_w = 260
+            print('DEBUG: writing images to', tmp_r.name, tmp_l.name)
             img_r = ReportLabImage(tmp_r.name, width=img_w)
             img_l = ReportLabImage(tmp_l.name, width=img_w)
             img_r.hAlign = 'CENTER'
