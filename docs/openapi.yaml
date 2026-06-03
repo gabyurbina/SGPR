@@ -1,0 +1,69 @@
+openapi: 3.0.0
+info:
+  title: SGPR API
+  version: '1.0'
+  description: API básica para el sistema de gestión de permisos (endpoints principales)
+servers:
+  - url: http://localhost:8000
+paths:
+  /api/solicitudes/:
+    get:
+      summary: Listar solicitudes
+      parameters:
+        - name: trabajador_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista de solicitudes
+    post:
+      summary: Crear solicitud
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                trabajador_id:
+                  type: integer
+                tipo:
+                  type: string
+                fecha_inicio:
+                  type: string
+                  format: date
+                fecha_fin:
+                  type: string
+                  format: date
+                motivo:
+                  type: string
+                adjunto:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Solicitud creada
+  /api/estadisticas/:
+    get:
+      summary: Datos para graficas
+      responses:
+        '200':
+          description: Datos en JSON
+  /api/export/pdf/:
+    post:
+      summary: Generar PDF de estadísticas
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                img_chart:
+                  type: string
+                img_locations:
+                  type: string
+                filters:
+                  type: object
+      responses:
+        '200':
+          description: PDF generado

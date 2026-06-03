@@ -225,23 +225,12 @@ Luego exporta la clave en la máquina/contendor que ejecute la app.
 
 - Usa HTTPS para exponer la app (Nginx + Gunicorn o servicios administrados). No expongas directamente `runserver`.
 
-- Recomendación de despliegue rápido con Docker Compose: configura variables en un `.env` y usa `docker-compose up --build`.
+- Recomendación de despliegue: configura variables en un `.env` y despliega con Gunicorn + Nginx; para desarrollo use `python manage.py runserver`.
 
 ---
 
 ---
 
-## Docker (opcional)
-
-El proyecto incluye `Dockerfile` y `docker-compose.yml` para despliegue.
-
-Para ejecutar con Docker:
-
-```bash
-docker-compose up --build
-```
-
-Asegúrate de configurar las variables de entorno antes de levantar el contenedor.
 
 ---
 

@@ -1,0 +1,13 @@
+[Unit]
+Description=SGPR Gunicorn daemon
+After=network.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/sgpr
+Environment="PATH=/srv/sgpr/.venv/bin"
+ExecStart=/srv/sgpr/.venv/bin/gunicorn --workers 3 --bind unix:/run/sgpr.sock sgpr_alquitrana.wsgi:application
+
+[Install]
+WantedBy=multi-user.target

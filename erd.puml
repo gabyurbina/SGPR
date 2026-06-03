@@ -1,0 +1,94 @@
+@startuml
+' Diagrama ER de la base de datos SGPR (extraído de gestion_permisos/models.py)
+' Entidades principales: auth_user (Django), Trabajador, Solicitud, Auditoria
+
+entity "auth_user (Django User)" as User {
+  * id : integer <<PK>>
+  --
+  username : varchar
+  first_name : varchar
+  last_name : varchar
+  email : varchar
+}
+
+entity Trabajador {
+  * id : integer <<PK>>
+  --
+  user_id : integer <<FK to auth_user.id>>
+  cedula : varchar(15) <<unique>>
+  cedula_encrypted : text
+  cargo : varchar(100)
+  departamento : varchar(100)
+  password_reset_required : boolean
+}
+
+entity Solicitud {
+  * id : integer <<PK>>
+  --
+  trabajador_id : integer <<FK to Trabajador.id>>
+  tipo : varchar(30)
+  fecha_inicio : date
+  fecha_fin : date
+  motivo : text
+  adjunto : varchar
+  dias_continuos : integer
+  dias_laborables : integer
+  estado : varchar(10)
+  fecha_creacion : datetime
+  revisado_por_id : integer <<FK to auth_user.id (nullable)>>
+  observaciones_admin : text
+}
+
+entity Auditoria {
+  * id : integer <<PK>>
+  --
+  usuario_id : integer <<FK to auth_user.id (nullable)>>
+  accion : varchar(255)
+  tabla_afectada : varchar(100)
+  registro_id : integer
+  fecha_hora : datetime
+  detalles : text
+}
+
+' Relaciones
+User ||--|| Trabajador : "one-to-one (user)"
+Trabajador ||--o{ Solicitud : "1..n solicitudes"
+User ||--o{ Solicitud : "revisado_por (optional)"
+User ||--o{ Auditoria : "usuario (optional)"
+
+' Explicación detallada del modelo entidad relacion del db:
+' 
+' 1) Entidades:
+'    - auth_user (tabla de Django User): almacena credenciales y datos básicos (id, username, first_name, last_name, email). Es referenciada por Trabajador, Solicitud.revisado_por y Auditoria.usuario.
+'    - Trabajador: perfil laboral vinculado 1:1 a auth_user. Campos claves: cedula (única), cedula_encrypted (copia cifrada), cargo, departamento y password_reset_required. user_id es FK a auth_user.id.
+'    - Solicitud: representa permisos/reposos. FK trabajador_id apunta a Trabajador.id (una Persona puede tener muchas Solicitud). Campos relevantes: tipo (elección), fecha_inicio/fecha_fin, motivo (campo cifrado), adjunto (ruta de archivo), dias_continuos, dias_laborables, estado (elección), fecha_creacion, revisado_por_id (FK opcional a auth_user), observaciones_admin.
+'    - Auditoria: registros de acciones del sistema. usuario_id FK opcional a auth_user; guarda accion, tabla_afectada, registro_id (id del registro afectado), fecha_hora y detalles (cifrado).
+' 
+' 2) Claves y relaciones:
+'    - PK: cada entidad usa id autoincremental (PK).
+'    - Trabajador.user_id: OneToOne hacia auth_user (FK, único). Modela que cada Trabajador tiene exactamente un User.
+'    - Solicitud.trabajador_id: Many-to-One (Trabajador 1..N Solicitud).
+'    - Solicitud.revisado_por_id y Auditoria.usuario_id: FK opcionales a auth_user para registrar quién actuó.
+' 
+' 3) Restricciones y comportamientos importantes:
+'    - cedula en Trabajador es única (unique). cedula_encrypted mantiene copia cifrada al guardar (método save()).
+'    - En Solicitud.save() y clean() se calculan dias_continuos y dias_laborables, y se valida que fecha_inicio <= fecha_fin.
+'    - El campo motivo y Auditoria.detalles usan EncryptedTextField (se almacenan cifrados).
+'    - adjunto en Solicitud valida extensiones permitidas (.pdf, .png, .jpg, .jpeg).
+' 
+' 4) Cómo explicarlo en una presentación corta:
+'    - "Trabajador": perfil ligado a un usuario de Django; identifica a la persona (cédula única).
+'    - "Solicitud": cada permiso/reposo pertenece a un Trabajador; incluye fechas, motivo (cifrado) y posible archivo adjunto; el sistema calcula días y permite estados (PENDIENTE/APROBADO/RECHAZADO).
+'    - "Auditoría": almacena quién hizo qué y cuándo, con detalles cifrados.
+'    - Relacione visualmente: Usuario ↔ Trabajador (1:1); Trabajador → Solicitud (1:N); Usuario → Solicitud/Auditoría (N opcional).
+' 
+' 5) Consultas útiles para mostrar ejemplos:
+'    - Obtener solicitudes de un trabajador: SELECT * FROM gestion_permisos_solicitud WHERE trabajador_id = <id> ORDER BY fecha_creacion DESC;
+'    - Auditoría por usuario: SELECT * FROM gestion_permisos_auditoria WHERE usuario_id = <id> ORDER BY fecha_hora DESC;
+' 
+' 6) Notas técnicas y recomendaciones:
+'    - Mantener el cifrado fuera de la vista (usar propiedades o métodos para desencriptar cuando sea necesario).
+'    - Añadir índices si se filtra frecuentemente por cedula, fecha_creacion o trabajador_id.
+'    - Si se usa registro polimórfico en Auditoria (tabla_afectada + registro_id), documentar qué tablas/ids puede referenciar para evitar ambigüedad.
+' 
+@enduml

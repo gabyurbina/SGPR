@@ -1,0 +1,112 @@
+openapi: 3.0.0
+info:
+  title: SGPR API
+  version: '1.0'
+  description: API completa para gestión de Trabajadores, Solicitudes y Auditoría
+servers:
+  - url: http://localhost:8000
+components:
+  schemas:
+    Trabajador:
+      type: object
+      properties:
+        id:
+          type: integer
+        cedula:
+          type: string
+        nombres:
+          type: string
+        apellidos:
+          type: string
+        cargo:
+          type: string
+        departamento:
+          type: string
+        email:
+          type: string
+      required: [cedula, nombres, apellidos, cargo, email]
+    Solicitud:
+      type: object
+      properties:
+        id:
+          type: integer
+        trabajador_id:
+          type: integer
+        tipo:
+          type: string
+        fecha_inicio:
+          type: string
+          format: date
+        fecha_fin:
+          type: string
+          format: date
+        motivo:
+          type: string
+        adjunto:
+          type: string
+          format: binary
+        dias_continuos:
+          type: integer
+        dias_laborables:
+          type: integer
+        estado:
+          type: string
+      required: [trabajador_id, tipo, fecha_inicio, fecha_fin, motivo]
+    Auditoria:
+      type: object
+      properties:
+        id:
+          type: integer
+        usuario_id:
+          type: integer
+        accion:
+          type: string
+        tabla_afectada:
+          type: string
+        registro_id:
+          type: integer
+        fecha_hora:
+          type: string
+          format: date-time
+        detalles:
+          type: string
+
+paths:
+  /api/trabajadores/:
+    get:
+      summary: Listar trabajadores
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Crear trabajador
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Trabajador'
+      responses:
+        '201':
+          description: Creado
+  /api/solicitudes/:
+    get:
+      summary: Listar solicitudes
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Crear solicitud
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Solicitud'
+      responses:
+        '201':
+          description: Creado
+  /api/auditoria/:
+    get:
+      summary: Listar registros de auditoría
+      responses:
+        '200':
+          description: OK
