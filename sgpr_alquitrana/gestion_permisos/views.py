@@ -1421,7 +1421,6 @@ def exportar_estadisticas_pdf(request):
             except Exception:
                 fullname = ''
                 cedula_val = q or ''
-            from reportlab.platypus import Paragraph, Spacer
             header_style = styles['Heading4']
             header_style.spaceAfter = 6
             detail_header = Paragraph(f'Reporte del trabajador: {fullname} — Cédula: {cedula_val}', header_style)
