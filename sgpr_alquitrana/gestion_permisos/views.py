@@ -120,6 +120,29 @@ def es_gestion_humana(user):
     return user.is_staff or user.groups.filter(name='Gestion_Humana').exists()
 
 
+# Decorator para capturar excepciones en vistas y volcar traceback a un archivo de logs
+def capture_exceptions_log_to_file(view_func):
+    def wrapper(request, *args, **kwargs):
+        try:
+            return view_func(request, *args, **kwargs)
+        except Exception as e:
+            import traceback, datetime, os
+            try:
+                tb = traceback.format_exc()
+                logs_dir = getattr(settings, 'BASE_DIR', os.getcwd())
+                logs_dir = os.path.join(logs_dir, 'logs')
+                os.makedirs(logs_dir, exist_ok=True)
+                fname = os.path.join(logs_dir, 'pdf_error.log')
+                with open(fname, 'a', encoding='utf-8') as f:
+                    f.write(f"[{datetime.datetime.now().isoformat()}] Exception in {view_func.__name__}\n")
+                    f.write(tb + '\n')
+            except Exception:
+                logger.exception('Failed writing exception to log file')
+            logger.exception('Captured exception in %s', view_func.__name__)
+            return HttpResponse('Error interno al generar PDF', status=500)
+    return wrapper
+
+
 @login_required
 def dashboard(request):
     """Panel principal: lista de solicitudes según el rol del usuario."""
@@ -1307,6 +1330,7 @@ def buscar_trabajadores(request):
 
 @login_required
 @user_passes_test(es_gestion_humana)
+@capture_exceptions_log_to_file
 def exportar_estadisticas_pdf(request):
     """Exportar estadísticas a PDF (incrusta imagen del gráfico)."""
     q = request.GET.get('q', '').strip()
