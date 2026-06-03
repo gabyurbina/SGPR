@@ -1375,6 +1375,46 @@ def exportar_estadisticas_pdf(request):
     rechazadas = qs.filter(estado='RECHAZADO').count()
     pendientes = qs.filter(estado='PENDIENTE').count()
 
+    # If the filter targets a specific trabajador but there are no solicitudes, return a short PDF with a friendly message
+    if (q or trabajador_id) and total == 0:
+        try:
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=90, bottomMargin=30)
+            styles = getSampleStyleSheet()
+            story = []
+            # header
+            fullname = ''
+            try:
+                if trabajador_id:
+                    t = Trabajador.objects.select_related('user').filter(id=trabajador_id).first()
+                else:
+                    t = Trabajador.objects.select_related('user').filter(cedula__icontains=q).first()
+                if t:
+                    fullname = t.user.get_full_name()
+                    cedula_val = t.cedula
+                else:
+                    cedula_val = q or ''
+            except Exception:
+                fullname = ''
+                cedula_val = q or ''
+            from reportlab.platypus import Paragraph, Spacer
+            header_style = styles['Heading4']
+            header_style.spaceAfter = 6
+            detail_header = Paragraph(f'Reporte del trabajador: {fullname} — Cédula: {cedula_val}', header_style)
+            story.append(detail_header)
+            story.append(Spacer(1,12))
+            # message
+            normal = styles['Normal']
+            story.append(Paragraph('El trabajador consultado no ha realizado ninguna solicitud en el periodo seleccionado.', normal))
+            doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
+            buffer.seek(0)
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%I%M%S')
+            response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename=estadisticas_{timestamp}.pdf'
+            return response
+        except Exception:
+            logger.exception('PDF: fallo generando PDF de mensaje de sin solicitudes')
+
     # Generar imágenes con matplotlib para PDF
     imgdata_requests = None
     imgdata_locations = None

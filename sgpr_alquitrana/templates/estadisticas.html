@@ -156,6 +156,15 @@ async function renderChart() {
     if (type === 'pie') {
       const statusLabels = data.datasets.map(ds=>ds.label);
       const statusValues = data.datasets.map(ds=>ds.data.reduce((a,b)=>a+b,0));
+      // If there are no solicitudes for the trabajador, show message and do not attempt to export image
+      const totalCount = statusValues.reduce((a,b)=>a+b,0);
+      if(totalCount === 0){
+        document.getElementById('stats-detail').innerHTML = '<div class="alert alert-info">El trabajador consultado no ha realizado ninguna solicitud.</div>';
+        document.getElementById('statsChart').parentElement.style.display = 'none';
+        document.getElementById('statsChartLocations').parentElement.style.display = 'none';
+        updateExportBtn();
+        return;
+      }
       const statusColors = generateColors(statusLabels.length);
       window._statsChart = new Chart(ctx, {
         type: 'pie',
@@ -266,6 +275,32 @@ async function submitPdf(){
     const canvasLoc = document.getElementById('statsChartLocations');
     let img_chart = '';
     let img_locations = '';
+
+    // Helper to safely get a data URL from a canvas. Try direct toDataURL first, then draw to a tmp canvas with proper pixel size.
+    function getCanvasDataUrl(srcCanvas, chartObj){
+      try{
+        if(!srcCanvas) return '';
+        // try direct capture
+        try{
+          const direct = srcCanvas.toDataURL('image/png');
+          if(direct && direct.length > 500) return direct;
+        }catch(e){ /* continue to drawing approach */ }
+        // compute pixel sizes
+        const dpr = window.devicePixelRatio || 1;
+        const rect = srcCanvas.getBoundingClientRect();
+        const w = (srcCanvas.width && srcCanvas.width>0) ? srcCanvas.width : Math.round(rect.width * dpr);
+        const h = (srcCanvas.height && srcCanvas.height>0) ? srcCanvas.height : Math.round(rect.height * dpr);
+        if(w <= 0 || h <= 0) return '';
+        const tmp = document.createElement('canvas');
+        tmp.width = w; tmp.height = h;
+        const tctx = tmp.getContext('2d');
+        // draw image; if Chart.js has hidden title via options, capture after hiding
+        tctx.drawImage(srcCanvas, 0, 0, w, h);
+        const data = tmp.toDataURL('image/png');
+        return data && data.length>200 ? data : '';
+      }catch(e){ console.log('getCanvasDataUrl error', e); return ''; }
+    }
+
     try{
       if(canvasMain){
         let origTitleDisplay;
@@ -274,18 +309,14 @@ async function submitPdf(){
           window._statsChart.options.plugins.title.display = false;
           window._statsChart.update();
         }
-        const tmp = document.createElement('canvas');
-        tmp.width = canvasMain.width;
-        tmp.height = canvasMain.height;
-        const tctx = tmp.getContext('2d');
-        tctx.drawImage(canvasMain,0,0);
-        img_chart = tmp.toDataURL('image/png');
+        img_chart = getCanvasDataUrl(canvasMain, window._statsChart);
         if(window._statsChart && typeof origTitleDisplay !== 'undefined'){
           window._statsChart.options.plugins.title.display = origTitleDisplay;
           window._statsChart.update();
         }
       }
     }catch(e){ console.log('submitPdf: cannot read main canvas',e); }
+
     try{
       if(canvasLoc && canvasLoc.parentElement.style.display !== 'none'){
         let origTitleDisplayLoc;
@@ -294,12 +325,7 @@ async function submitPdf(){
           window._statsChartLoc.options.plugins.title.display = false;
           window._statsChartLoc.update();
         }
-        const tmp2 = document.createElement('canvas');
-        tmp2.width = canvasLoc.width;
-        tmp2.height = canvasLoc.height;
-        const tctx2 = tmp2.getContext('2d');
-        tctx2.drawImage(canvasLoc,0,0);
-        img_locations = tmp2.toDataURL('image/png');
+        img_locations = getCanvasDataUrl(canvasLoc, window._statsChartLoc);
         if(window._statsChartLoc && typeof origTitleDisplayLoc !== 'undefined'){
           window._statsChartLoc.options.plugins.title.display = origTitleDisplayLoc;
           window._statsChartLoc.update();
