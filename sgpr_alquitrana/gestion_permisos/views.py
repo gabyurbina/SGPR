@@ -1439,7 +1439,7 @@ def exportar_estadisticas_pdf(request):
                     title += f' - {fullname}'
                 elif range_text:
                     title += f' ({range_text})'
-                ax.set_title(title, fontsize=10)
+                # title removed per user request
                 ax.legend(loc='upper right', fontsize=8)
                 ax.set_xticklabels(dates_list, rotation=45, ha='right', fontsize=7)
                 ax.set_ylabel('Solicitudes')
@@ -1456,7 +1456,9 @@ def exportar_estadisticas_pdf(request):
                 loc_values = [d['c'] for d in loc_counts[:10]]
                 if loc_labels:
                     fig2, ax2 = plt.subplots(figsize=(4,1.0))
-                    ax2.bar(loc_labels, loc_values, color=['#4e73df' if i % 2 == 0 else '#1cc88a' for i in range(len(loc_labels))])
+                    cmap = plt.get_cmap('tab20')
+                    colors_loc = [matplotlib.colors.to_hex(cmap(i % cmap.N)) for i in range(len(loc_labels))]
+                    ax2.bar(loc_labels, loc_values, color=colors_loc)
                     loc_title = 'Distribución por ubicación'
                     if fullname:
                         loc_title += f' - {fullname}'
@@ -1504,7 +1506,12 @@ def exportar_estadisticas_pdf(request):
                 loc_values = [d['c'] for d in loc_counts[:10]]
                 if loc_labels:
                     fig2, ax2 = plt.subplots(figsize=(4,1.0))
-                    (ax2.pie(loc_values, labels=loc_labels, autopct='%1.1f%%', colors=[('#4e73df' if i % 2 == 0 else '#1cc88a') for i in range(len(loc_labels))]) if chart_type == 'pie' else ax2.bar(loc_labels, loc_values, color=['#4e73df' if i % 2 == 0 else '#1cc88a' for i in range(len(loc_labels))]))
+                    cmap = plt.get_cmap('tab20')
+                    colors_loc = [matplotlib.colors.to_hex(cmap(i % cmap.N)) for i in range(len(loc_labels))]
+                    if chart_type == 'pie':
+                        ax2.pie(loc_values, labels=loc_labels, autopct='%1.1f%%', colors=colors_loc)
+                    else:
+                        ax2.bar(loc_labels, loc_values, color=colors_loc)
                     ax2.set_title('Distribución por ubicación', fontsize=9)
                     fig2.tight_layout()
                     imgbuf2 = BytesIO()
@@ -1544,7 +1551,12 @@ def exportar_estadisticas_pdf(request):
             loc_values = [d['c'] for d in loc_counts[:10]]
             if loc_labels:
                 fig2, ax2 = plt.subplots(figsize=(5,1.6))
-                (ax2.pie(loc_values, labels=loc_labels, autopct='%1.1f%%', colors=[('#4e73df' if i % 2 == 0 else '#1cc88a') for i in range(len(loc_labels))]) if chart_type == 'pie' else ax2.bar(loc_labels, loc_values, color=['#4e73df' if i % 2 == 0 else '#1cc88a' for i in range(len(loc_labels))]))
+                cmap = plt.get_cmap('tab20')
+                colors_loc = [matplotlib.colors.to_hex(cmap(i % cmap.N)) for i in range(len(loc_labels))]
+                if chart_type == 'pie':
+                    ax2.pie(loc_values, labels=loc_labels, autopct='%1.1f%%', colors=colors_loc)
+                else:
+                    ax2.bar(loc_labels, loc_values, color=colors_loc)
                 ax2.set_title('Distribución por ubicación', fontsize=10)
                 fig2.tight_layout()
                 imgbuf2 = BytesIO()
@@ -1575,10 +1587,19 @@ def exportar_estadisticas_pdf(request):
             imgdata_requests.seek(0)
             tmp_r = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
             try:
-                from PIL import Image as PilImage
+                from PIL import Image as PilImage, ImageDraw
                 pil_r = PilImage.open(imgdata_requests)
                 if pil_r.mode in ('RGBA','LA'):
                     pil_r = pil_r.convert('RGB')
+                # Remove embedded chart title by overlaying a white rectangle at top area
+                try:
+                    w_px, h_px = pil_r.size
+                    y0 = int(h_px * 0.12)
+                    y1 = int(h_px * 0.22)
+                    draw = ImageDraw.Draw(pil_r)
+                    draw.rectangle(((0, y0), (w_px, y1)), fill='white')
+                except Exception:
+                    pass
                 pil_r.save(tmp_r.name, format='PNG')
                 size_r = os.path.getsize(tmp_r.name)
                 logger.info(f'PDF temp image created via PIL: {tmp_r.name} size={size_r}')
@@ -1591,10 +1612,19 @@ def exportar_estadisticas_pdf(request):
             imgdata_locations.seek(0)
             tmp_l = tempfile.NamedTemporaryFile(suffix='.png', delete=False)
             try:
-                from PIL import Image as PilImage
+                from PIL import Image as PilImage, ImageDraw
                 pil_l = PilImage.open(imgdata_locations)
                 if pil_l.mode in ('RGBA','LA'):
                     pil_l = pil_l.convert('RGB')
+                # Remove embedded chart title area
+                try:
+                    w_px_l, h_px_l = pil_l.size
+                    y0l = int(h_px_l * 0.12)
+                    y1l = int(h_px_l * 0.22)
+                    drawl = ImageDraw.Draw(pil_l)
+                    drawl.rectangle(((0, y0l), (w_px_l, y1l)), fill='white')
+                except Exception:
+                    pass
                 pil_l.save(tmp_l.name, format='PNG')
                 size_l = os.path.getsize(tmp_l.name)
                 logger.info(f'PDF temp image created via PIL: {tmp_l.name} size={size_l}')
@@ -1603,19 +1633,25 @@ def exportar_estadisticas_pdf(request):
                 with open(tmp_l.name, 'wb') as f:
                     f.write(imgdata_locations.getvalue())
             pdf_temp_files.append(tmp_l.name)
-            # scale images to available document width
+            # side-by-side: use target width 260 pts each and preserve aspect ratio
             try:
-                print('DEBUG: doc.width =', getattr(doc, 'width', 'UNKNOWN'))
-                img_w = min(max((getattr(doc, 'width', 400) - 40) / 2.0, 100), 200)
-            except Exception as e:
-                print('DEBUG: error computing img_w', e)
-                img_w = 180
-            print('DEBUG: writing images to', tmp_r.name, tmp_l.name)
-            img_r = ReportLabImage(tmp_r.name, width=img_w)
-            img_l = ReportLabImage(tmp_l.name, width=img_w)
+                target_w = 260
+                from PIL import Image as PilImage
+                pr = PilImage.open(tmp_r.name)
+                pl = PilImage.open(tmp_l.name)
+                w_r_px, h_r_px = pr.size
+                w_l_px, h_l_px = pl.size
+                h_r_pts = max(int(target_w * (h_r_px / w_r_px)), 80)
+                h_l_pts = max(int(target_w * (h_l_px / w_l_px)), 80)
+            except Exception:
+                target_w = 260
+                h_r_pts = int(target_w * 0.5)
+                h_l_pts = int(target_w * 0.5)
+            img_r = ReportLabImage(tmp_r.name, width=target_w, height=h_r_pts)
+            img_l = ReportLabImage(tmp_l.name, width=target_w, height=h_l_pts)
             img_r.hAlign = 'CENTER'
             img_l.hAlign = 'CENTER'
-            table_img = Table([[img_r, img_l]], colWidths=[img_w, img_w])
+            table_img = Table([[img_r, img_l]], colWidths=[target_w, target_w])
             table_img.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
             story.append(table_img)
             story.append(Spacer(1,12))
@@ -1634,11 +1670,13 @@ def exportar_estadisticas_pdf(request):
                 except Exception:
                     logger.exception('PDF: error obteniendo tamaño tmp_r')
                 pdf_temp_files.append(tmp_r.name)
+                # Single main chart: set exact size 520x260 pts per user preference
                 try:
-                    img_w = min(max(getattr(doc, 'width', 400) - 40, 160), 360)
+                    target_w = 510
+                    target_h = 180
+                    img_r = ReportLabImage(tmp_r.name, width=target_w, height=target_h)
                 except Exception:
-                    img_w = 300
-                img_r = ReportLabImage(tmp_r.name, width=img_w)
+                    img_r = ReportLabImage(tmp_r.name, width=400)
                 img_r.hAlign = 'CENTER'
                 story.append(img_r)
                 story.append(Spacer(1,12))
@@ -1659,9 +1697,9 @@ def exportar_estadisticas_pdf(request):
                         f.write(imgdata_locations.getvalue())
                 pdf_temp_files.append(tmp_l.name)
                 try:
-                    img_w2 = min(max(getattr(doc, 'width', 400) - 40, 200), 480)
+                    img_w2 = min(max(getattr(doc, 'width', 400) - 20, 220), 520)
                 except Exception:
-                    img_w2 = 300
+                    img_w2 = 400
                 img_l = ReportLabImage(tmp_l.name, width=img_w2)
                 img_l.hAlign = 'CENTER'
                 story.append(img_l)
@@ -1692,13 +1730,11 @@ def exportar_estadisticas_pdf(request):
             header_style = getSampleStyleSheet()['Heading4']
             header_style.spaceAfter = 6
             detail_header = Paragraph(f'Reporte del trabajador: {fullname} — Cédula: {cedula_val}', header_style)
-            story.append(Spacer(1,6))
             story.append(detail_header)
-            story.append(Spacer(1,6))
         except Exception:
             pass
 
-        story.append(Spacer(1,12))
+        story.append(Spacer(1,6))
         # Detalle de solicitudes: usar Paragraphs para que el texto se ajuste y no se sobreponga
         from reportlab.lib.styles import ParagraphStyle
         cell_style = ParagraphStyle('detail_cell', parent=styles['Normal'], fontSize=8, leading=10)

@@ -6,7 +6,9 @@
     <p class="text-muted mb-0">Generar gráficos y reportes por rango de fechas y por trabajador.</p>
   </div>
   <div class="d-flex gap-2">
-    <button id="export-pdf-btn" type="button" class="btn btn-outline-secondary">Descargar PDF</button>
+    <button id="export-pdf-btn" type="button" class="btn btn-outline-secondary btn-export">
+      <i class="fa-solid fa-file-pdf me-2"></i>Descargar PDF
+    </button>
   </div>
 </div>
 
@@ -57,6 +59,24 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+// Generate visually distinct colors
+function generateColors(n, s=65, l=55){
+  function hslToRgb(h, s, l){
+    s /= 100; l /= 100;
+    const k = n => (n + h/30) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+    return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
+  }
+  const out = [];
+  for(let i=0;i<n;i++){
+    const hue = Math.round((360 * i) / n);
+    const [r,g,b] = hslToRgb(hue, s, l);
+    out.push('#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1));
+  }
+  return out;
+}
+
 async function searchWorkers(query) {
   if(!query || query.length < 2) return {results: []};
   const resp = await fetch('{% url "buscar_trabajadores" %}?q='+encodeURIComponent(query));
@@ -136,9 +156,10 @@ async function renderChart() {
     if (type === 'pie') {
       const statusLabels = data.datasets.map(ds=>ds.label);
       const statusValues = data.datasets.map(ds=>ds.data.reduce((a,b)=>a+b,0));
+      const statusColors = generateColors(statusLabels.length);
       window._statsChart = new Chart(ctx, {
         type: 'pie',
-        data: { labels: statusLabels, datasets: [{ data: statusValues, backgroundColor: data.datasets.map(ds=>ds.color||'#4e73df') }] },
+        data: { labels: statusLabels, datasets: [{ data: statusValues, backgroundColor: statusColors }] },
         options: {responsive:true, plugins: { title: { display: true, text: chartTitle, font: { size: 12 } }, legend: {position: 'bottom'} } }
       });
       document.getElementById('stats-detail').innerHTML = renderDetailTable(data.detail || []);
@@ -146,7 +167,9 @@ async function renderChart() {
       document.getElementById('statsChartLocations').parentElement.style.display = 'none';
     } else {
       const labels = data.labels;
-      const datasets = data.datasets.map(ds=>({ label: ds.label, data: ds.data, backgroundColor: ds.color || '#4e73df' }));
+      const datasets = data.datasets.map(ds=>({ label: ds.label, data: ds.data }));
+      const dsColors = generateColors(datasets.length);
+      datasets.forEach((d,i)=> d.backgroundColor = dsColors[i]);
       window._statsChart = new Chart(ctx, {
         type: 'bar',
         data: { labels: labels, datasets: datasets },
@@ -161,11 +184,12 @@ async function renderChart() {
     const labels = data.labels;
     const values = data.values;
     // summary chart
+    const summaryColors = generateColors(values.length);
     window._statsChart = new Chart(ctx, {
       type: type,
       data: {
         labels: labels,
-        datasets: [{ label: 'Solicitudes', data: values, backgroundColor: ['#4e73df','#1cc88a','#e74a3b','#f6c23e'] }]
+        datasets: [{ label: 'Solicitudes', data: values, backgroundColor: summaryColors }]
       },
       options: {responsive:true, plugins: { title: { display: true, text: chartTitle, font: { size: 12 } }, legend: {position: 'bottom'}}}
     });
@@ -173,15 +197,17 @@ async function renderChart() {
     if (data.locations && data.locations.labels && data.locations.labels.length>0) {
       document.getElementById('statsChartLocations').parentElement.style.display = '';
       if (type === 'pie') {
+        const locColors = generateColors(data.locations.labels.length);
         window._statsChartLoc = new Chart(ctxLoc, {
           type: 'pie',
-          data: { labels: data.locations.labels, datasets: [{ data: data.locations.values, backgroundColor: data.locations.labels.map((_,i)=> i%2==0? '#4e73df':'#1cc88a') }] },
+          data: { labels: data.locations.labels, datasets: [{ data: data.locations.values, backgroundColor: locColors }] },
           options: {responsive:true, plugins: { title: { display: true, text: chartTitle + ' — Ubicaciones', font: { size: 12 } }, legend: {position: 'bottom'}}}
         });
       } else {
+        const locColors = generateColors(data.locations.labels.length);
         window._statsChartLoc = new Chart(ctxLoc, {
           type: 'bar',
-          data: { labels: data.locations.labels, datasets: [{ label: 'Solicitudes por ubicación', data: data.locations.values, backgroundColor: data.locations.labels.map((_,i)=> i%2==0? '#4e73df':'#1cc88a') }] },
+          data: { labels: data.locations.labels, datasets: [{ label: 'Solicitudes por ubicación', data: data.locations.values, backgroundColor: locColors }] },
           options: {responsive:true, plugins: { title: { display: true, text: chartTitle + ' — Ubicaciones', font: { size: 12 } }, legend: {position: 'bottom'}}, scales: { x: { ticks: {autoSkip: false} } }}
         });
       }
@@ -211,6 +237,26 @@ document.addEventListener('click', function(e){
 document.getElementById('stats-form').addEventListener('submit', function(e){
   e.preventDefault(); renderChart();
 });
+
+// Helper: determine if any filters are applied
+function hasFilters() {
+  const params = Object.fromEntries(new FormData(document.getElementById('stats-form')));
+  return Boolean(params.fecha_inicio || params.fecha_fin || params.q || params.trabajador_id || params.ubicacion);
+}
+function updateExportBtn(){
+  const exportBtn = document.getElementById('export-pdf-btn');
+  if(!exportBtn) return;
+  const disabled = !hasFilters();
+  exportBtn.disabled = disabled;
+  if(disabled) { exportBtn.classList.add('disabled'); exportBtn.title = 'Aplicar filtros para habilitar exportar PDF'; }
+  else { exportBtn.classList.remove('disabled'); exportBtn.title = ''; }
+}
+// Bind inputs to update export availability
+document.querySelectorAll('#stats-form input, #stats-form select').forEach(el=>{
+  el.addEventListener('input', updateExportBtn);
+  el.addEventListener('change', updateExportBtn);
+});
+
 // bind export button
 async function submitPdf(){
   try{
@@ -220,8 +266,46 @@ async function submitPdf(){
     const canvasLoc = document.getElementById('statsChartLocations');
     let img_chart = '';
     let img_locations = '';
-    try{ if(canvasMain){ img_chart = canvasMain.toDataURL('image/png'); } }catch(e){ console.log('submitPdf: cannot read main canvas',e); }
-    try{ if(canvasLoc && canvasLoc.parentElement.style.display !== 'none'){ img_locations = canvasLoc.toDataURL('image/png'); } }catch(e){ console.log('submitPdf: cannot read loc canvas',e); }
+    try{
+      if(canvasMain){
+        let origTitleDisplay;
+        if(window._statsChart && window._statsChart.options && window._statsChart.options.plugins && window._statsChart.options.plugins.title){
+          origTitleDisplay = window._statsChart.options.plugins.title.display;
+          window._statsChart.options.plugins.title.display = false;
+          window._statsChart.update();
+        }
+        const tmp = document.createElement('canvas');
+        tmp.width = canvasMain.width;
+        tmp.height = canvasMain.height;
+        const tctx = tmp.getContext('2d');
+        tctx.drawImage(canvasMain,0,0);
+        img_chart = tmp.toDataURL('image/png');
+        if(window._statsChart && typeof origTitleDisplay !== 'undefined'){
+          window._statsChart.options.plugins.title.display = origTitleDisplay;
+          window._statsChart.update();
+        }
+      }
+    }catch(e){ console.log('submitPdf: cannot read main canvas',e); }
+    try{
+      if(canvasLoc && canvasLoc.parentElement.style.display !== 'none'){
+        let origTitleDisplayLoc;
+        if(window._statsChartLoc && window._statsChartLoc.options && window._statsChartLoc.options.plugins && window._statsChartLoc.options.plugins.title){
+          origTitleDisplayLoc = window._statsChartLoc.options.plugins.title.display;
+          window._statsChartLoc.options.plugins.title.display = false;
+          window._statsChartLoc.update();
+        }
+        const tmp2 = document.createElement('canvas');
+        tmp2.width = canvasLoc.width;
+        tmp2.height = canvasLoc.height;
+        const tctx2 = tmp2.getContext('2d');
+        tctx2.drawImage(canvasLoc,0,0);
+        img_locations = tmp2.toDataURL('image/png');
+        if(window._statsChartLoc && typeof origTitleDisplayLoc !== 'undefined'){
+          window._statsChartLoc.options.plugins.title.display = origTitleDisplayLoc;
+          window._statsChartLoc.update();
+        }
+      }
+    }catch(e){ console.log('submitPdf: cannot read loc canvas',e); }
 
     const fd = new FormData();
     for(const [k,v] of Object.entries(params)) fd.append(k, v);
@@ -249,7 +333,7 @@ async function submitPdf(){
     const blob = await resp.blob();
     const contentDisp = resp.headers.get('Content-Disposition') || '';
     let filename = 'estadisticas.pdf';
-    const m = contentDisp.match(/filename="?([^\"]+)"?/);
+    const m = contentDisp.match(/filename=?([^\"]+)?/);
     if(m && m[1]) filename = m[1];
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 10000);
@@ -261,5 +345,6 @@ if(exportBtn) exportBtn.addEventListener('click', ()=>{ submitPdf(); });
 
 // Initial render
 renderChart();
+updateExportBtn();
 </script>
 {% endblock %}

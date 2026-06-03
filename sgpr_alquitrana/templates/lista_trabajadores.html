@@ -8,8 +8,12 @@
   </div>
   <div class="d-flex flex-wrap gap-2 align-items-center">
 {% with qs=request.GET.urlencode %}
-    <a class="btn btn-outline-secondary btn-action btn-export" href="{% url 'exportar_trabajadores_excel' %}{% if qs %}?{{ qs }}{% endif %}">Descargar XLSX</a>
-    <a class="btn btn-outline-secondary btn-action btn-export" href="{% url 'exportar_trabajadores_pdf' %}{% if qs %}?{{ qs }}{% endif %}">Descargar PDF</a>
+    <a class="btn btn-outline-secondary btn-action btn-export" href="{% url 'exportar_trabajadores_excel' %}{% if qs %}?{{ qs }}{% endif %}">
+      <i class="fa-solid fa-file-excel me-2"></i>Descargar XLSX
+    </a>
+    <a class="btn btn-outline-secondary btn-action btn-export" href="{% url 'exportar_trabajadores_pdf' %}{% if qs %}?{{ qs }}{% endif %}">
+      <i class="fa-solid fa-file-pdf me-2"></i>Descargar PDF
+    </a>
     {% endwith %}
     <a class="btn btn-primary-custom btn-export" href="{% url 'registro_trabajador' %}">Nuevo trabajador</a>
   </div>
