@@ -1,5 +1,2 @@
-﻿Pytest no disponible en este entorno.
-Para generar un reporte pytest real, instale dependencias y ejecute:
-  pip install -r requirements.txt
-  pytest -q 2>&1 | Out-File -Encoding utf8 docs\test_evidences\pytest_report.txt
-Este archivo es un placeholder indicando la ausencia de pytest en el runner.
+﻿
+no tests ran in 0.08s

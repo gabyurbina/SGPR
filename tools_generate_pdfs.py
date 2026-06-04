@@ -35,7 +35,9 @@ for md in md_files:
         text = re.sub(r'^\s*[-*+]\s+', '- ', text, flags=re.M)
         text = re.sub(r'\n{3,}', '\n\n', text)
 
-        filename = os.path.splitext(os.path.basename(md))[0] + '.pdf'
+        rel = os.path.splitext(os.path.relpath(md, root))[0]
+        safe_name = rel.replace(os.sep, '_').replace('/', '_').replace('\\', '_')
+        filename = safe_name + '.pdf'
         outpath = os.path.join(out_dir, filename)
         c = canvas.Canvas(outpath, pagesize=letter)
         width, height = letter
