@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+  <rect x="0" y="0" width="800" height="600" fill="#ffffff"/>
+  <rect x="150" y="120" width="500" height="360" rx="8" fill="#f4f6f8" stroke="#cfd8dc"/>
+  <text x="400" y="160" font-size="20" text-anchor="middle" fill="#111">Login — Wireframe</text>
+  <rect x="200" y="200" width="400" height="40" rx="6" fill="#ffffff" stroke="#b0bec5"/>
+  <text x="210" y="228" font-size="14" fill="#78909c">Usuario (email)</text>
+  <rect x="200" y="260" width="400" height="40" rx="6" fill="#ffffff" stroke="#b0bec5"/>
+  <text x="210" y="288" font-size="14" fill="#78909c">Contraseña</text>
+  <rect x="320" y="330" width="160" height="42" rx="6" fill="#1976d2"/>
+  <text x="400" y="358" font-size="16" text-anchor="middle" fill="#fff">Ingresar</text>
+  <text x="400" y="410" font-size="12" text-anchor="middle" fill="#607d8b">Enlace: Recuperar contraseña</text>
+</svg>
