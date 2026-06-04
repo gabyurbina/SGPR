@@ -1,0 +1,8 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400">
+  <rect width="800" height="400" fill="#fff"/>
+  <text x="400" y="40" font-size="18" text-anchor="middle" fill="#111">Evidencia: Export PDF  fallback (server-side)</text>
+  <rect x="50" y="80" width="700" height="260" fill="#f4f6f8" stroke="#cfd8dc"/>
+  <text x="80" y="120" font-size="14" fill="#37474f">Condición: canvas tainted</text>
+  <text x="80" y="150" font-size="14" fill="#37474f">Acción: Fallback con matplotlib + ReportLab</text>
+  <text x="400" y="330" font-size="12" text-anchor="middle" fill="#607d8b">Placeholder  reemplazar por captura real</text>
+</svg>
