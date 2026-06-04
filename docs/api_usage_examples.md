@@ -1,4 +1,4 @@
-# Ejemplos de Uso de API - SGPR
+# Uso de API - SGPR
 
 ## Crear Trabajador (curl)
 

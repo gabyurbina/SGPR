@@ -1,5 +1,5 @@
 @startuml
-' Diagrama ER de la base de datos SGPR (extraído de gestion_permisos/models.py)
+' Diagrama ER de la base de datos SGPR
 ' Entidades principales: auth_user (Django), Trabajador, Solicitud, Auditoria
 
 entity "auth_user (Django User)" as User {

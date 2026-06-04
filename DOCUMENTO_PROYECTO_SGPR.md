@@ -28,7 +28,6 @@ Diseñar, desarrollar e implementar un sistema que permita registrar, revisar y 
 - Desarrollar interfaces para registro y gestión de solicitudes.
 - Incorporar visualización de estadísticas con Chart.js y exportes PDF/XLSX que reproduzcan los gráficos.
 - Registrar auditoría de acciones críticas y mantener logs seguros.
-- Desplegar la aplicación en servidor (Gunicorn + Nginx) para reproducibilidad.
 
 ## 5. Propósito y justificación
 
@@ -45,7 +44,7 @@ Incluye:
 
 ## 7. Descripción del proyecto
 
-Aplicación web Django. Frontend con plantillas y Chart.js para gráficos. Exportes PDF intentan capturar el canvas cliente (canvas.toDataURL); si falla (canvas tainted) se genera gráfico en servidor con matplotlib y se ensambla el PDF con ReportLab y Pillow. Campos sensibles (ej. cédula, motivo) se almacenan cifrados usando EncryptedTextField.
+Aplicación web desarrollada en Python con Django. Frontend con plantillas y Chart.js para gráficos. Exportes PDF intentan capturar el canvas cliente (canvas.toDataURL); si falla (canvas tainted) se genera gráfico en servidor con matplotlib y se ensambla el PDF con ReportLab y Pillow. Campos sensibles (ej. cédula, motivo) se almacenan cifrados usando EncryptedTextField.
 
 ---
 
@@ -151,7 +150,7 @@ Este periodo abarca 3 meses. Se propone dividir en sprints de 2 semanas. Resumen
 **Acta — Reunión de seguimiento (Daily/Weekly)**
 
 - Fecha: 2026-05-05
-- Participantes: Desarrolladora (responsable única)
+- Participantes: Desarrolladora (Gabriela Urbina)
 - Objetivos del día/sprint: Finalizar exportes PDF; corregir tamaño de gráficos
 - Avances: Captura cliente funciona en navegador X; fallback en servidor implementado
 - Bloqueos: Canvas tainted en navegadores con recursos cross-origin
@@ -162,7 +161,7 @@ Este periodo abarca 3 meses. Se propone dividir en sprints de 2 semanas. Resumen
 
 ---
 
-## 15. Informe consolidado mensual de acciones (Ejemplos)
+## 15. Informe consolidado mensual de acciones
 
 ### Abril 2026
 - Implementación de modelos y CRUD básicos.

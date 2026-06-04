@@ -1,6 +1,6 @@
 # Documento del Proyecto - SGPR
 
-> Documento completo del sistema de Gestión de Permisos y Reportes (SGPR). Desarrollado bajo metodología SCRUM por una única persona que ejecutó todas las actividades de análisis, diseño, desarrollo, pruebas e implementación.
+> Documento completo del sistema de Gestión de Permisos y Reportes (SGPR). Desarrollado bajo metodología SCRUM como Responsable del desarrollo: Gabriela Urbinaa que ejecutó todas las actividades de análisis, diseño, desarrollo, pruebas e implementación.
 
 ---
 
@@ -67,7 +67,7 @@ Incluye: módulo de trabajadores, registro de solicitudes, gestión de estados (
 
 ## Descripción general del proyecto
 
-Aplicación Django con frontend que utiliza Chart.js para visualización. Exportes PDF se generan combinando captura client-side (canvas.toDataURL) y fallback server-side (matplotlib + ReportLab) si el canvas está "tainted". Se cifra información sensible con EncryptedTextField.
+Aplicación web desarrollada en Python usando Django, con frontend que utiliza Chart.js para visualización. Exportes PDF se generan combinando captura client-side (canvas.toDataURL) y fallback server-side (matplotlib + ReportLab) si el canvas está "tainted". Se cifra información sensible con EncryptedTextField.
 
 ## Stakeholders (Interesados)
 
