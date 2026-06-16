@@ -2,9 +2,10 @@
 
 | Nombre | Rol / Organización | Contacto | Interés | Poder | Observaciones |
 |---|---:|---|---:|---:|---|
-| Administrador | TI / Infraestructura | admin@ejemplo.local | Alto | Alto | Responsable del despliegue y backups
-| Recursos Humanos | RRHH | rrhh@ejemplo.local | Alto | Alto | Usuario principal de reportes
-| Trabajadores | Usuarios finales | - | Alto | Bajo | Uso operativo del sistema
-| Auditoría | Control interno | auditoria@ejemplo.local | Alto | Alto | Revisión de trazabilidad
-| Soporte/Developer | Equipo de TI | dev@ejemplo.local | Medio | Medio | Mantenimiento y parches
+| Administrador del sistema | TI / Infraestructura | admin@ejemplo.local | Alto | Alto | Responsable del despliegue, configuración y permisos
+| Recursos Humanos | RRHH | rrhh@ejemplo.local | Alto | Alto | Product Owner, prioriza el backlog y utiliza reportes
+| Trabajadores | Usuarios finales | - | Alto | Bajo | Solicitan permisos, consultan estados e historial
+| Auditoría interna | Control interno | auditoria@ejemplo.local | Alto | Alto | Verifica trazabilidad y cumplimiento normativo
+| Equipo de soporte/IT | TI / Soporte | soporte@ejemplo.local | Medio | Medio | Gestiona soporte, backups y disponibilidad
+| Desarrollo principal | Desarrollo / Proyecto | gabriela.urbina@ejemplo.local | Alto | Alto | Responsable de análisis, desarrollo, pruebas e implementación
 

@@ -11,4 +11,9 @@ Ver README_PROYECTO.md — sección Alcance.
 - 99% de disponibilidad en producción (según SLA interno).
 
 ## Interesados principales
-- Recursos Humanos, Administrador, Auditoría, Trabajadores.
+- Recursos Humanos (Francismar Marchan)
+- Administrador del sistema (Lic. Marbella Canelón)
+- Auditaría interna
+- Trabajadores (usuarios finales)
+- Equipo de soporte/IT (Ing. Trino Vera)
+- Desarrollo principal (Gabriela Urbina)

@@ -71,11 +71,12 @@ Aplicación web desarrollada en Python usando Django, con frontend que utiliza C
 
 ## Stakeholders (Interesados)
 
-- Administrador del sistema
-- Recursos Humanos
+- Administrador del sistema (Lic. Marbella Canelón)
+- Recursos Humanos (Francismar Marchan)
 - Trabajadores (usuarios finales)
-- Equipo de IT/Soporte
 - Auditoría interna
+- Equipo de IT/Soporte (Ing. Trino Vera)
+- Desarrollo principal (Gabriela Urbina)
 
 ## Historias de usuario (Casos de uso)
 

@@ -26,7 +26,7 @@ Diseñar, desarrollar e implementar un sistema que permita registrar, revisar y 
 
 - Implementar modelos de datos para Trabajador, Solicitud y Auditoría con cifrado para campos sensibles.
 - Desarrollar interfaces para registro y gestión de solicitudes.
-- Incorporar visualización de estadísticas con Chart.js y exportes PDF/XLSX que reproduzcan los gráficos.
+- Incorporar visualización de estadísticas con Chart.js y exportes PDF que reproduzcan los gráficos.
 - Registrar auditoría de acciones críticas y mantener logs seguros.
 
 ## 5. Propósito y justificación
@@ -38,7 +38,7 @@ Centralizar la gestión de permisos reduce errores administrativos, agiliza proc
 Incluye:
 - Módulo Trabajadores (perfil y vínculo con usuario Django).
 - Módulo Solicitudes (creación, edición, validación, cálculo automático de días laborables y adjuntos).
-- Panel de Estadísticas (gráficos, filtrado, exportes PDF/XLSX).
+- Panel de Estadísticas (gráficos, filtrado, exportes PDF).
 - Módulo Auditoría (registro de acciones con detalles cifrados).
 - Despliegue en servidor (configuración básica: Gunicorn + Nginx). 
 
@@ -50,11 +50,89 @@ Aplicación web desarrollada en Python con Django. Frontend con plantillas y Cha
 
 ## 8. Stakeholders (Interesados)
 
-- Administrador del sistema
-- Recursos Humanos
+- Administrador del sistema (Lic. Marbella Canelón)
+- Recursos Humanos (Francismar Marchan)
 - Trabajadores (usuarios finales)
 - Auditoría interna
-- Equipo de soporte/IT
+- Equipo de soporte/IT (Ing. Trino Vera)
+- Desarrollo principal (Gabriela Urbina)
+
+## 8.1 Usuarios
+
+- Administrador del sistema (Lic Marbella Canelón): responsable de la configuración, administración de roles y políticas.
+- Recursos Humanos (Francismar Marchan): principal actor que gestiona solicitudes, aprobaciones y reportes.
+- Trabajadores (usuarios finales): generan solicitudes de permisos y consultan su historial.
+- Auditoría interna: revisa registros y asegura cumplimiento normativo.
+- Equipo de soporte/IT (Ing. Trino Vera): mantiene la infraestructura, despliegues y backups.
+
+## 8.2 Roles de los Interesados (Scrum)
+
+- Product Owner: Recursos Humanos (Francismar Marchan). Representa la voz del cliente, prioriza el backlog del producto y valida el valor entregado.
+- Scrum Master / Facilitador: Administrador del sistema (Lic Marbella Canelón). Facilita el proceso Scrum, elimina impedimentos y asegura que el equipo siga buenas prácticas.
+- Development Team: Gabriela Urbina (desarrolladora principal), Equipo de soporte/IT (Ing. Trino Vera) y el equipo técnico. Construyen, despliegan y mantienen el producto, asegurando calidad y entrega continua.
+- Stakeholders clave: Trabajadores (usuarios finales) y Auditoría interna. Proveen retroalimentación, validan requisitos y evalúan el cumplimiento de necesidades.
+
+## 8.2.1 Medios de comunicación y relaciones de la desarrolladora principal
+
+- Gabriela Urbina mantiene comunicación directa con Recursos Humanos para validar requisitos funcionales, priorizar solicitudes y ajustar reportes.
+- Se relaciona con el Administrador del sistema para coordinar accesos, permisos, y requerimientos de infraestructura y seguridad.
+- Trabaja con el Equipo de soporte/IT para desplegar el sistema, gestionar backups y resolver incidencias técnicas.
+- Colabora con la Auditoría interna para definir registros de trazabilidad, criterios de auditoría y protección de datos sensibles.
+- También recibe retroalimentación indirecta de los Trabajadores (usuarios finales) a través de Recursos Humanos y pruebas de usuario, para mejorar la usabilidad y el flujo de solicitudes.
+
+## 8.3 Intereses por Usuario
+
+### Administrador del sistema
+- Interés en mantener el sistema estable y seguro.
+- Interés en tener control sobre permisos y accesos.
+- Interés en automatizar tareas administrativas.
+
+### Recursos Humanos
+- Interés en agilizar la aprobación de solicitudes.
+- Interés en obtener datos y reportes precisos para gestión de personal.
+- Interés en reducir errores y tiempos de trámite.
+
+### Trabajadores (usuarios finales)
+- Interés en la transparencia del estado de sus permisos.
+- Interés en un proceso simple para enviar solicitudes y adjuntos.
+- Interés en recibir confirmaciones y tener acceso a su historial.
+
+### Auditoría interna
+- Interés en contar con registros completos y auditable.
+- Interés en la integridad y confidencialidad de los datos.
+- Interés en demostrar cumplimiento normativo.
+
+### Equipo de soporte/IT
+- Interés en despliegues consistentes y documentación clara.
+- Interés en detectar y resolver incidentes rápido.
+- Interés en mantener el rendimiento y disponibilidad del sistema.
+
+## 8.3 Necesidades, Producto y Valor por Usuario
+
+### Administrador del sistema
+- Necesidades: gestionar usuarios, roles y permisos; monitorear salud del sistema; configurar backups y mantener seguridad.
+- Producto: panel de administración, control de roles, logs operativos, herramientas de backup y configuración.
+- Valor: reduce tiempo de administración, centraliza controles y minimiza errores de configuración.
+
+### Recursos Humanos
+- Necesidades: revisar y aprobar solicitudes; generar reportes por periodo y trabajador; acceder a históricos y métricas.
+- Producto: interfaz de gestión de solicitudes, filtros avanzados en el panel de estadísticas y exporte PDF de informes.
+- Valor: mayor eficiencia en la gestión, evidencia documental para decisiones y menor trabajo manual.
+
+### Trabajadores (usuarios finales)
+- Necesidades: crear solicitudes con adjuntos, conocer el estado y ver su historial personal de permisos.
+- Producto: formularios simples y guiados, subida y descarga de adjuntos, vista de estado y notificaciones.
+- Valor: transparencia en procesos, menor carga administrativa y acceso rápido a comprobantes.
+
+### Auditoría interna
+- Necesidades: acceder a registros de acciones, buscar por usuario/tabla/fecha y garantizar integridad de los datos.
+- Producto: repositorio de auditoría con búsquedas, exportes y campos sensibles cifrados; controles de acceso restringido.
+- Valor: cumplimiento normativo, capacidad de investigación y evidencia confiable ante auditorías.
+
+### Equipo de soporte/IT
+- Necesidades: despliegues reproducibles, acceso a logs y métricas, procedimientos de recuperación y monitoreo.
+- Producto: documentación de despliegue (Gunicorn+Nginx), scripts de backup, endpoints de salud y logs centralizados.
+- Valor: despliegues más rápidos y seguros, menor tiempo de inactividad y mejor respuesta ante incidentes.
 
 ---
 
@@ -77,7 +155,7 @@ Para cada HU se documenta: actor, precondición, flujo principal, excepciones, p
 - RF2: CRUD para Solicitudes con validación de fechas y adjuntos.
 - RF3: Cálculo automático de días_continuos y dias_laborables.
 - RF4: Visualización de estadísticas con filtros.
-- RF5: Exportar estadísticas a PDF y XLSX incluyendo gráficos.
+- RF5: Exportar estadísticas a PDF incluyendo gráficos.
 - RF6: Registro de auditoría para acciones críticas.
 - RF7: Autenticación y control de permisos basados en Django.
 
@@ -88,6 +166,58 @@ Para cada HU se documenta: actor, precondición, flujo principal, excepciones, p
 - RNF3: Disponibilidad y despliegue reproducible en servidor (Gunicorn + Nginx).
 - RNF4: Mantenibilidad: código documentado y pruebas básicas.
 - RNF5: Portabilidad: soporte PostgreSQL/SQLite.
+
+---
+
+## 11.1 Requisitos de Alto Nivel del Proyecto
+
+- RAL-01: Gestionar trabajadores y su vínculo con el usuario Django, manteniendo roles y perfiles actualizados.
+- RAL-02: Administrar solicitudes de permisos y reposos con creación, edición, validación de fechas, adjuntos y cálculo automático de días laborables.
+- RAL-03: Proveer un panel de estadísticas con gráficos dinámicos, filtros y exporte PDF de los resultados.
+- RAL-04: Registrar auditoría de acciones críticas, incluyendo detalles cifrados y trazabilidad por usuario y tabla.
+- RAL-05: Desplegar el sistema en servidor con una configuración reproducible de Gunicorn + Nginx y documentación de instalación.
+
+## 11.2 Requisito con Criterio de Éxito
+
+- RAL-01: El sistema debe permitir la creación, edición y eliminación de trabajadores con datos válidos y asociación a usuarios Django. Criterio de éxito: todas las operaciones CRUD son funcionales, los usuarios autenticados pueden acceder a su perfil, y el listado de trabajadores muestra información correcta.
+- RAL-02: El sistema debe permitir gestionar solicitudes completas, validar fechas, calcular automáticamente días continuos y días laborables, y adjuntar archivos. Criterio de éxito: las solicitudes se guardan con cálculos correctos, los estados cambian a aprobado/rechazado, y el adjunto se almacena y descarga correctamente.
+- RAL-03: El sistema debe mostrar estadísticas actualizadas con filtros por trabajador, tipo y rango de fechas, y exportar el informe en PDF. Criterio de éxito: los gráficos reflejan datos reales, los filtros funcionan correctamente, y el PDF generado incluye la gráfica y resumen de datos.
+- RAL-04: El sistema debe capturar acciones críticas en auditoría con campos sensibles cifrados. Criterio de éxito: cada acción de aprobación, rechazo, edición o eliminación queda registrada y es recuperable solo por usuarios autorizados.
+- RAL-05: El sistema debe documentar y soportar un despliegue reproducible en servidor con Gunicorn y Nginx. Criterio de éxito: el sistema arranca en el servidor bajo la configuración especificada y la documentación describe los pasos de despliegue.
+
+## 11.3 Hitos
+
+- Hito: El panel de estadísticas debe mostrar gráficos dinámicos y filtros funcionales. Realidad: la implementación se valida cuando los datos se actualizan correctamente en la interfaz.
+- Hito: El sistema debe exportar informes en PDF desde estadísticas. Realidad: el hito se alcanza si el PDF se genera correctamente y contiene los datos esperados.
+- Hito: La auditoría debe registrar acciones críticas con trazabilidad. Realidad: se cumple con registros completos y acceso controlado.
+- Hito: El despliegue en servidor debe ser reproducible con Gunicorn/Nginx. Realidad: el hito se alcanza cuando el sistema arranca bajo la configuración documentada.
+
+## 11.4 Riesgos
+
+- Riesgo: Compatibilidad entre SQLite y PostgreSQL. Mitigación: probar el modelo de datos y las migraciones en ambos motores.
+- Riesgo: Canvas tainted al capturar gráficos cliente-side para PDF. Mitigación: implementar fallback server-side con matplotlib y ReportLab.
+- Riesgo: Pérdida o corrupción de adjuntos durante la carga o descarga. Mitigación: validar extensiones, tamaños y respaldar los archivos adjuntos.
+- Riesgo: Acceso indebido a la auditoría o a datos sensibles. Mitigación: aplicar permisos estrictos y cifrado para los campos críticos.
+- Riesgo: Retrasos en el despliegue por errores de configuración de Gunicorn/Nginx. Mitigación: documentar la configuración y realizar pruebas en un entorno similar al de producción.
+
+## 11.5 Supuestos
+
+- Se asume que el entorno de desarrollo y producción dispone de Python 3.11+ y las dependencias definidas en `requirements.txt`.
+- Se asume que el servidor de producción contará con Gunicorn y Nginx instalados y accesibles para configuración.
+- Se asume que los usuarios tendrán credenciales válidas en Django y roles definidos para control de acceso.
+- Se asume que el volumen de datos será moderado, permitiendo tiempos de respuesta aceptables en operaciones básicas.
+- Se asume que el equipo puede utilizar Chart.js para la visualización de estadísticas y que el navegador cliente soporta la biblioteca.
+- Se asume que los adjuntos se almacenarán en el sistema de archivos local del proyecto o en un almacenamiento compatible disponible.
+
+## 11.6 Restricciones
+
+- El sistema debe ejecutarse sobre Django con plantillas HTML; no se contempla una aplicación SPA completa.
+- El proyecto debe ser compatible con SQLite para desarrollo y PostgreSQL para producción.
+- Las exportaciones de estadísticas deben ser en PDF; XLSX no es un requisito obligatorio para el panel de estadísticas.
+- El despliegue debe apoyarse en Gunicorn + Nginx según la configuración descrita en la documentación.
+- Los adjuntos deben limitarse a extensiones permitidas y tamaños máximos definidos por la aplicación.
+- Los datos sensibles deben cifrarse en la base de datos y gestionarse con variables de entorno para las claves.
+- El acceso a la auditoría y a los módulos críticos debe restringirse a usuarios autorizados.
 
 ---
 
@@ -126,7 +256,7 @@ Este periodo abarca 3 meses. Se propone dividir en sprints de 2 semanas. Resumen
   - Integrar Chart.js, filtros, paleta de colores
   - Ajustes visuales y pruebas manuales
 
-- Sprint 4 (13/05 — 26/05): Exportes PDF/XLSX
+- Sprint 4 (13/05 — 26/05): Exportes PDF
   - Captura canvas client-side y envío base64
   - Implementar fallback server-side (matplotlib+ReportLab)
   - Pruebas de exportes y ajustes de tamaño/espaciado

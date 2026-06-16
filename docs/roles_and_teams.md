@@ -3,7 +3,7 @@
 ## Resumen
 Este proyecto fue desarrollado bajo SCRUM con una sola persona realizando todas las funciones. A continuación se registran los roles y responsabilidades asignadas.
 
-- Product Owner (Propietario del Producto): Cliente / Administrador (recomendado: representante del área de RRHH)
+- Product Owner (Propietario del Producto): Cliente / Administrador (Lic. Marbella Canelón Gerente de la Oficina de Gestión Humana)
 - Scrum Master: Desarrolladora (responsable única)
 - Scrum Developer (Desarrollador): Desarrolladora (responsable única)
 

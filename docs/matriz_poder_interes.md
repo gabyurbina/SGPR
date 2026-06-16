@@ -9,14 +9,15 @@ Este documento ubica a los interesados (stakeholders) en la matriz Poder vs. Int
 - Bajo poder / Bajo interés: Monitoreo mínimo
 
 ## Stakeholders
-- Administrador del sistema — Alto poder / Alto interés
-- Recursos Humanos — Alto poder / Alto interés
+- Administrador del sistema (Lic. Marbella Canelón) — Alto poder / Alto interés
+- Recursos Humanos (Francismar Marchan) — Alto poder / Alto interés
 - Trabajadores (usuarios finales) — Bajo poder / Alto interés
 - Auditoría interna — Alto poder / Alto interés
-- Equipo de soporte/IT — Medio poder / Medio interés
+- Equipo de soporte/IT (Ing. Trino Vera) — Medio poder / Medio interés
+- Desarrollo principal (Gabriela Urbina) — Alto poder / Alto interés
 
 ## Plan de comunicación
-- Gestión activa (Admin, RRHH, Auditoría): reuniones semanales, entregables de sprint, acceso a demos.
+- Gestión activa (Administrador, RRHH, Auditoría, Desarrollo principal): reuniones semanales, entregables de sprint, acceso a demos.
 - Mantener informado (Trabajadores): manuales, comunicados y guías de uso.
-- Monitoreo (otros): reportes mensuales.
+- Monitoreo (Equipo de soporte/IT): reportes de estado y métricas de soporte.
 
