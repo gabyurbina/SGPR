@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """Script de gestión para el proyecto Django.
-Este archivo permite ejecutar comandos como `runserver`, `migrate`, etc.
-"""
+Este archivo permite ejecutar comandos como `runserver`, `migrate`, etc."""
 import os
 import sys
 

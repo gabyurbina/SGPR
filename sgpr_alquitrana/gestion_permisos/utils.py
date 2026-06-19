@@ -4,10 +4,11 @@ Usa `FERNET_KEY` desde variables de entorno. Generar una clave segura con:
 
   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 
-Guarde esa clave en la variable de entorno `FERNET_KEY` en producción.
-"""
+Guarde esa clave en la variable de entorno `FERNET_KEY` en producción."""
+
 import os
 import logging
+import binascii
 from cryptography.fernet import Fernet, InvalidToken
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,13 @@ def decrypt_text(token: str) -> str:
     try:
         plain = f.decrypt(token.encode('utf-8'))
         return plain.decode('utf-8')
-    except InvalidToken:
-        logger.exception('Token de cifrado inválido al intentar descifrar')
+    except (InvalidToken, binascii.Error, ValueError) as e:
+        # No mostrar traza completa para tokens inválidos (puede ocurrir por datos no cifrados
+        # o keys incompatibles). Registrar aviso con información mínima y devolver el valor
+        # original para que el resto de la aplicación pueda manejarlo.
+        try:
+            preview = (token[:32] + '...') if isinstance(token, str) and len(token) > 32 else token
+        except Exception:
+            preview = '<no-preview>'
+        logger.warning("No se pudo descifrar token (no válido o padding incorrecto): %s; error=%s", preview, str(e))
         return token

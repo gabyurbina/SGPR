@@ -121,33 +121,83 @@ function debounceSearch(q) {
 async function fetchData(params) {
   const q = new URLSearchParams(params).toString();
   const resp = await fetch('{% url "estadisticas_data" %}?'+q);
-  return resp.json();
+  if(!resp.ok){
+    const txt = await resp.text().catch(()=>'');
+    console.error('estadisticas_data HTTP error', resp.status, txt);
+    const container = document.getElementById('stats-detail');
+    if(container) container.innerHTML = `<div class="alert alert-danger">Error cargando datos del servidor (status ${resp.status}).</div>`;
+    return { error: true };
+  }
+  // leer cuerpo como texto y parsear JSON manualmente para poder mostrar el cuerpo en caso de fallo
+  const bodyText = await resp.text();
+  try{
+    return JSON.parse(bodyText);
+  }catch(e){
+    console.error('estadisticas_data: respuesta no JSON o parse error', e, bodyText);
+    const container = document.getElementById('stats-detail');
+    if(container) container.innerHTML = '<div class="alert alert-danger">Respuesta inválida del servidor (no JSON).</div>';
+    return { error: true };
+  }
 }
 
 function renderDetailTable(detailRows) {
   if(!detailRows || detailRows.length===0) return '';
   let html = '<h5>Detalle de solicitudes</h5>';
-  html += '<table class="table table-sm"><thead><tr><th>Fecha</th><th>Tipo</th><th>Estatus</th><th>Motivo</th></tr></thead><tbody>';
-  detailRows.forEach(r=>{
-    html += `<tr><td>${r.fecha}</td><td>${r.tipo || ''}</td><td>${r.estado}</td><td>${r.motivo || ''}</td></tr>`;
-  });
+  // Detectar si las filas contienen nombres/apellidos/cedula para mostrar columnas adicionales
+  const first = detailRows[0] || {};
+  const hasWorkerCols = ('nombres' in first) || ('apellidos' in first) || ('cedula' in first);
+  if(hasWorkerCols){
+    html += '<table class="table table-sm"><thead><tr><th>Fecha</th><th>Nombres</th><th>Apellidos</th><th>Cédula</th><th>Tipo</th><th>Estatus</th><th>Motivo</th></tr></thead><tbody>';
+    detailRows.forEach(r=>{
+      html += `<tr><td>${r.fecha}</td><td>${r.nombres || ''}</td><td>${r.apellidos || ''}</td><td>${r.cedula || ''}</td><td>${r.tipo || ''}</td><td>${r.estado || ''}</td><td>${r.motivo || ''}</td></tr>`;
+    });
+  } else {
+    html += '<table class="table table-sm"><thead><tr><th>Fecha</th><th>Tipo</th><th>Estatus</th><th>Motivo</th></tr></thead><tbody>';
+    detailRows.forEach(r=>{
+      html += `<tr><td>${r.fecha}</td><td>${r.tipo || ''}</td><td>${r.estado || ''}</td><td>${r.motivo || ''}</td></tr>`;
+    });
+  }
   html += '</tbody></table>';
   return html;
 }
 
 async function renderChart() {
   const params = Object.fromEntries(new FormData(document.getElementById('stats-form')));
+  // Si se proporcionó una cédula (q) pero no hay trabajador_id, intentar resolverlo vía la búsqueda
+  if(params.q && !params.trabajador_id){
+    try{
+      const searchRes = await searchWorkers(params.q);
+      if(searchRes && Array.isArray(searchRes.results) && searchRes.results.length){
+        // Preferir coincidencia exacta por cédula
+        let match = searchRes.results.find(r => String(r.cedula) === String(params.q));
+        if(!match && searchRes.results.length === 1) match = searchRes.results[0];
+        if(match){
+          params.trabajador_id = match.id;
+          const hid = document.getElementById('trabajador_id'); if(hid) hid.value = match.id;
+        }
+      }
+    }catch(e){ console.warn('No se pudo resolver trabajador por cédula antes de fetchData', e); }
+  }
   const data = await fetchData(params);
+  if(!data || data.error){
+    // ya mostramos mensaje en fetchData; ocultar canvases por seguridad
+    try{ document.getElementById('statsChart').parentElement.style.display = 'none'; }catch(e){}
+    try{ document.getElementById('statsChartLocations').parentElement.style.display = 'none'; }catch(e){}
+    return;
+  }
   const ctx = document.getElementById('statsChart').getContext('2d');
   const ctxLoc = document.getElementById('statsChartLocations').getContext('2d');
   if(window._statsChart) window._statsChart.destroy();
   if(window._statsChartLoc) window._statsChartLoc.destroy();
   const type = params.chart_type || 'pie';
 
+  // Helper para formatear 'YYYY-MM-DD' a 'DD-MM-YYYY'
+  function formatDateInputStr(d){ if(!d) return ''; try{ const parts = d.split('-'); if(parts.length===3) return `${parts[2]}-${parts[1]}-${parts[0]}`; return d;}catch(e){return d;} }
+
   // Construir título según filtros
   let titleParts = [];
   if (params.q) titleParts.push('Trabajador: ' + params.q);
-  if (params.fecha_inicio || params.fecha_fin) titleParts.push((params.fecha_inicio||'') + ' - ' + (params.fecha_fin||''));
+  if (params.fecha_inicio || params.fecha_fin) titleParts.push((formatDateInputStr(params.fecha_inicio)||'') + ' - ' + (formatDateInputStr(params.fecha_fin)||''));
   if (params.ubicacion) titleParts.push('Ubicación: ' + params.ubicacion);
   const chartTitle = titleParts.length ? titleParts.join(' | ') : 'Estadísticas de solicitudes';
 
@@ -243,6 +293,16 @@ document.addEventListener('click', function(e){
   workerResults.style.display = 'none';
 });
 
+// si el usuario escribe manualmente la cédula, invalidar trabajador_id
+const cedulaInput = document.getElementById('cedula');
+if(cedulaInput){
+  cedulaInput.addEventListener('input', ()=>{
+    const hid = document.getElementById('trabajador_id');
+    if(hid && hid.value) hid.value = '';
+    updateExportBtn();
+  });
+}
+
 document.getElementById('stats-form').addEventListener('submit', function(e){
   e.preventDefault(); renderChart();
 });
@@ -270,13 +330,18 @@ document.querySelectorAll('#stats-form input, #stats-form select').forEach(el=>{
 async function submitPdf(){
   try{
     const formEl = document.getElementById('stats-form');
+    // Asegurar que el campo oculto `trabajador_id` sea un id numérico válido antes de enviar
+    const hid = document.getElementById('trabajador_id');
+    if(hid && hid.value && !/^\d+$/.test(hid.value)){
+      hid.value = '';
+    }
     const params = Object.fromEntries(new FormData(formEl));
     const canvasMain = document.getElementById('statsChart');
     const canvasLoc = document.getElementById('statsChartLocations');
     let img_chart = '';
     let img_locations = '';
 
-    // Helper to safely get a data URL from a canvas. Try direct toDataURL first, then draw to a tmp canvas with proper pixel size.
+  
     function getCanvasDataUrl(srcCanvas, chartObj){
       try{
         if(!srcCanvas) return '';

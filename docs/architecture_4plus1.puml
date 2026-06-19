@@ -1,0 +1,230 @@
+﻿@startuml
+'-------------------------------------------------------------------------------
+' Diagrama 4+1 de Arquitectura del Sistema SGPR
+' Este archivo incluye un diagrama resumen y vistas separadas:
+'   1) Vista lógica
+'   2) Vista de desarrollo
+'   3) Vista de proceso
+'   4) Vista física
+'   5) Escenarios / casos de uso
+'-------------------------------------------------------------------------------
+
+skinparam packageStyle rectangle
+skinparam componentStyle uml2
+skinparam shadowing false
+
+' --- Página 1: Resumen general ---
+
+title SGPR - Arquitectura 4+1 (Resumen)
+
+actor "Trabajador" as Trabajador
+actor "Gestión Humana / Supervisor" as Supervisor
+actor "Administrador / Auditor" as Admin
+actor "Auditor / Soporte" as Auditor
+
+package "Aplicación Django" {
+  [Login / Dashboard] as Login
+  [Registro de Trabajador] as Registro
+  [Gestión de Solicitudes] as Solicitudes
+  [Estadísticas y Reportes] as Reportes
+  [Auditoría y Seguridad] as Auditoria
+}
+
+database "Base de datos" as DB
+folder "Media / Adjuntos" as MediaVol
+
+Trabajador --> Login : Ingresa / Solicita permiso
+Supervisor --> Solicitudes : Revisa / Evalúa solicitudes
+Supervisor --> Reportes : Consulta filtros / genera PDF
+Admin --> Registro : Administra trabajadores
+Auditor --> Auditoria : Consulta logs / auditoría
+
+Login --> DB
+Registro --> DB
+Solicitudes --> DB
+Reportes --> DB
+Auditoria --> DB
+
+note right of Reportes
+  Exporta a PDF/XLSX
+  Reportes basados en datos y gráficos
+end note
+
+note left of Auditoria
+  Cifrado de motivos y cédulas
+  Registro de acciones críticas
+end note
+
+newpage
+
+' --- Página 2: Vista Lógica ---
+
+title SGPR - Vista Lógica
+
+frame "Lógica de Negocio" {
+  component "Módulo Trabajadores" as MTrabajadores
+  component "Módulo Solicitudes" as MSolicitudes
+  component "Módulo Auditoría" as MAuditoria
+  component "Módulo Estadísticas" as MEstadisticas
+  component "Módulo Exportes" as MExportes
+}
+
+component "Formularios y Validación" as Forms
+component "Modelos / Cifrado" as Modelos
+component "Views / Controladores" as Views
+component "Servicios y Utilidades" as Utils
+
+MTrabajadores --> Modelos : Trabajador, User, cédula cifrada
+MSolicitudes --> Modelos : Solicitud, cálculo días laborables
+MAuditoria --> Modelos : Auditoria, detalles cifrados
+MEstadisticas --> Views : endpoint JSON de datos
+MExportes --> Utils : PDF / XLSX / ReportLab / OpenPyXL
+
+Views --> Forms : valida solicitud, registro, edición
+Forms --> Modelos : crea / actualiza instancias
+Views --> Utils : cálculo feriados, exportes
+
+note right of Views
+  - `views.py` controla rutas: dashboard, solicitud, evaluación,
+    auditoría, exportes y estadísticas.
+end note
+
+note left of Modelos
+  - `Trabajador`, `Solicitud`, `Auditoria`
+  - `EncryptedTextField` para campos sensibles
+  - `Solicitud.clean()` calcula días continuos y días laborables
+end note
+
+newpage
+
+' --- Página 3: Vista de Desarrollo ---
+
+title SGPR - Vista de Desarrollo
+
+package "Proyecto Django" {
+  node "sgpr_alquitrana/" as Root {
+    [settings.py]
+    [urls.py]
+    [wsgi.py]
+  }
+}
+
+package "Aplicación" {
+  node "gestion_permisos/" as App {
+    [models.py]
+    [views.py]
+    [forms.py]
+    [urls.py]
+    [utils.py]
+    [fields.py]
+    [middleware.py]
+    [serializers.py]
+    [admin.py]
+  }
+}
+
+package "Recursos" {
+  folder "templates/" as Templates
+  folder "static/" as Static
+  folder "media/" as Media
+}
+
+Root --> App : carga app y configuración
+App --> Templates : renderiza páginas HTML
+App --> Static : sirve CSS / JS / Chart.js
+App --> Media : guarda adjuntos y recursos
+
+note right of App
+  - `gestion_permisos` contiene el dominio funcional.
+  - `views.py` define los flujos de usuario.
+  - `urls.py` expone rutas y API.
+end note
+
+newpage
+
+' --- Página 4: Vista de Proceso ---
+
+title SGPR - Vista de Proceso
+
+node "Navegador / Cliente" as Browser
+node "Django App" as Django
+database "Base de datos\n(SQLite / PostgreSQL)" as DB2
+folder "Media/Adjuntos" as Adjuntos
+
+Browser --> Django : GET / POST solicitudes
+Browser --> Django : POST /api/trabajadores/registro/
+Browser --> Django : GET /estadisticas/data/
+Browser --> Django : GET /estadisticas/descargar/pdf/
+Django --> DB2 : CRUD solicitudes, usuarios, auditoría
+Django --> Adjuntos : guarda archivos `justificantes/`
+
+note right of Django
+  - Autenticación con Django auth
+  - Decoradores `login_required` y `user_passes_test`
+  - Procesa `SolicitudForm`, `RegistroTrabajadorForm`, `EvaluacionSolicitudForm`
+end note
+
+newpage
+
+' --- Página 5: Vista Física ---
+
+title SGPR - Vista Física
+
+node "Nginx / Proxy" as Nginx
+node "Gunicorn + Django" as Gunicorn
+database "PostgreSQL / SQLite" as DB3
+folder "Volumen media" as MediaVol2
+folder "Volumen backups" as BackupVol2
+
+Nginx --> Gunicorn : Reenvía HTTP
+Gunicorn --> DB3 : Conexiones SQL
+Gunicorn --> MediaVol2 : Archivos cargados y adjuntos
+Gunicorn --> BackupVol2 : scripts de backup y restauración
+
+note left of Gunicorn
+  - App Python Django
+  - `settings.py` carga variables de `.env`
+  - `collectstatic` en producción para archivos estáticos
+end note
+
+note bottom of MediaVol2
+  - `media/justificantes/`
+  - archivos PDF, PNG, JPG, JPEG
+end note
+
+newpage
+
+' --- Página 6: Escenarios / Casos de uso ---
+
+title SGPR - Escenarios / Casos de uso
+
+actor "Trabajador" as Actor1
+actor "RRHH / Supervisor" as Actor2
+actor "Administrador" as Actor3
+actor "Auditor" as Actor4
+
+usecase "Registrar trabajador" as UC1
+usecase "Enviar solicitud" as UC2
+usecase "Aprobar / Rechazar solicitud" as UC3
+usecase "Generar reporte PDF" as UC4
+usecase "Consultar auditoría" as UC5
+usecase "Buscar trabajador" as UC6
+
+Actor1 --> UC2
+Actor2 --> UC3
+Actor2 --> UC4
+Actor3 --> UC1
+Actor4 --> UC5
+Actor3 --> UC6
+
+note right of UC2
+  - Valida fechas, adjunto y motivo
+  - Calcula `dias_continuos` y `dias_laborables`
+end note
+
+note left of UC4
+  - Reportes usan Chart.js + fallback server-side
+  - PDF exportado con ReportLab / matplotlib si es necesario
+end note
+
+@enduml

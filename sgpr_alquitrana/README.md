@@ -1,6 +1,6 @@
 # SGPR - Sistema de Gestión de Permisos y Reposos
 
-*Es una aplicación Django para gestionar las solicitudes de permisos y reposos del personal, con control de usuarios, auditoría y exportación de reportes.
+*Aplicación Django para gestionar las solicitudes de permisos y reposos del personal, con control de usuarios, auditoría y exportación de reportes.
 
 ---
 
@@ -167,7 +167,7 @@ Ejemplo:
   "nombres": "Juan",
   "apellidos": "Pérez",
   "cargo": "Auxiliar",
-  "departamento": "Operaciones",
+  "departamento": "Gestión Humana",
   "email": "juan.perez@ejemplo.com"
 }
 ```
@@ -205,11 +205,11 @@ Recomendaciones mínimas para asegurar la aplicación antes de exponerla a Inter
    - `EMAIL_HOST` / `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` si usas SMTP
    - `FERNET_KEY` (clave para cifrado de campos sensibles)
 
-   Nota: por seguridad el sistema no muestra contraseñas por defecto en pantalla ni en mensajes. Configure `DEFAULT_PASSWORD` solo para entornos controlados o prefiera generar contraseñas temporales y notificar mediante correo con enlace de restablecimiento.
+   Nota: por seguridad el sistema no muestra contraseñas por defecto en pantalla ni en mensajes. Configure `DEFAULT_PASSWORD` solo para entornos controlados.
 
 - En `requirements.txt` se añadieron `cryptography` (cifrado de campos) y `argon2-cffi` (hasher opcional). Para usar Argon2, exporta `USE_ARGON2=True`.
 
-- En `sgpr_alquitrana/settings.py` hay variables que debes ajustar en producción:
+- En `sgpr_alquitrana/settings.py` hay variables que se debe ajustar en producción:
    - `DEBUG=False`
    - `DJANGO_ALLOWED_HOSTS` con los dominios/hosts donde se desplegará
    - `SESSION_COOKIE_SECURE=True`, `CSRF_COOKIE_SECURE=True`, `SECURE_SSL_REDIRECT=True`

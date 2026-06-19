@@ -1,6 +1,5 @@
 """Vistas principales de la aplicación SGPR.
-Funciones para el registro de permisos, reposos, trabajadores y auditoría.
-"""
+Funciones para el registro de permisos, reposos, trabajadores y auditoría."""
 
 from io import BytesIO
 import datetime
@@ -65,7 +64,7 @@ def format_datetime(dt):
 
 
 def agregar_numeracion_paginas(canvas, doc):
-    """Dibuja encabezado (imagen, título y fecha) igual que la página 1 en todas las páginas, y número de página en el pie."""
+    """Encabezado (imagen, título y fecha) igual que la página 1 en todas las páginas, y número de página en el pie."""
     canvas.saveState()
     width, height = doc.pagesize
 
@@ -86,7 +85,7 @@ def agregar_numeracion_paginas(canvas, doc):
         except Exception:
             draw_h = 0
 
-    # Título centrado debajo del encabezado (mismo estilo que la primera página)
+    # Título centrado debajo del encabezado
     title = getattr(doc, 'report_title', None)
     if title:
         canvas.setFont('Helvetica-Bold', 16)
@@ -159,7 +158,7 @@ def dashboard(request):
     else:
         personal_qs = Solicitud.objects.none()
 
-    # Solicitudes para administración (solo para gestores)
+    # Solicitudes para administración (solo para Administradores)
     admin_qs = None
     if es_gestion_humana(request.user):
         admin_qs = Solicitud.objects.select_related('trabajador__user').all().order_by('-fecha_creacion')
@@ -532,7 +531,7 @@ def editar_trabajador(request, trabajador_id):
 @login_required
 @user_passes_test(es_gestion_humana)
 def restablecer_contrasena(request, trabajador_id):
-    """Permite a admin reiniciar la contraseña de un trabajador."""
+    """Permite al administrador reiniciar la contraseña de un trabajador."""
     trabajador = get_object_or_404(Trabajador, id=trabajador_id)
     if request.method == 'POST':
         trabajador.user.set_password(settings.DEFAULT_PASSWORD)
@@ -1240,11 +1239,23 @@ def estadisticas_data(request):
     """Devuelve conteos agregados según filtros (JSON).
     Si se filtra por cédula (q), devuelve datasets por fecha y detalle de solicitudes."""
     q = request.GET.get('q', '').strip()
+    trabajador_id = request.GET.get('trabajador_id')
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
     ubicacion = request.GET.get('ubicacion', '').strip()
 
-    qs = Solicitud.objects.select_related('trabajador').all()
+    # traer también el usuario del trabajador para poder imprimir nombres/apellidos sin consultas adicionales
+    qs = Solicitud.objects.select_related('trabajador__user').all()
+
+    # helper: formatea una fecha recibida como 'YYYY-MM-DD' a 'DD-MM-YYYY' para mostrar en PDF
+    def format_input_date(dstr):
+        if not dstr:
+            return ''
+        try:
+            dt = datetime.datetime.strptime(dstr, '%Y-%m-%d')
+            return dt.strftime('%d-%m-%Y')
+        except Exception:
+            return dstr
     if q:
         qs = qs.filter(trabajador__cedula__icontains=q)
     if ubicacion:
@@ -1262,10 +1273,20 @@ def estadisticas_data(request):
         except Exception:
             pass
 
+    # Resolver objeto Trabajador (si el filtro apunta a un trabajador específico o por cédula)
+    trabajador_obj = None
+    try:
+        if trabajador_id:
+            trabajador_obj = Trabajador.objects.select_related('user').filter(id=trabajador_id).first()
+        elif q:
+            trabajador_obj = Trabajador.objects.select_related('user').filter(cedula__icontains=q).first()
+    except Exception:
+        trabajador_obj = None
+
     # Si se aplicó cualquier filtro (cédula, fecha o ubicación) devolver datasets por fecha y detalle
-    any_filter = bool(q or fecha_inicio or fecha_fin or ubicacion)
+    any_filter = bool(q or trabajador_id or fecha_inicio or fecha_fin or ubicacion)
     if any_filter:
-        # obtener fechas únicas ordenadas
+        # obtener fechas
         dates_qs = qs.dates('fecha_creacion', 'day')
         labels = [d.strftime('%d-%m-%Y') for d in dates_qs]
         statuses = [('APROBADO', '#1cc88a'), ('RECHAZADO', '#e74a3b'), ('PENDIENTE', '#f6c23e')]
@@ -1276,11 +1297,27 @@ def estadisticas_data(request):
         # detalle de solicitudes (fecha, estado, tipo, motivo)
         detail = []
         for s in qs.order_by('fecha_creacion'):
+            trab = getattr(s, 'trabajador', None)
+            nombres = ''
+            apellidos = ''
+            cedula_val = ''
+            try:
+                if trab and getattr(trab, 'user', None):
+                    nombres = trab.user.first_name or ''
+                    apellidos = trab.user.last_name or ''
+                    cedula_val = trab.cedula or ''
+            except Exception:
+                nombres = ''
+                apellidos = ''
+                cedula_val = ''
             detail.append({
                 'fecha': s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p'),
                 'estado': s.estado,
                 'tipo': s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo,
-                'motivo': str(s.motivo) if s.motivo else ''
+                'motivo': str(s.motivo) if s.motivo else '',
+                'nombres': nombres,
+                'apellidos': apellidos,
+                'cedula': cedula_val,
             })
         # también devolver desglose por ubicación
         loc_counts = list(qs.values('trabajador__departamento').annotate(c=Count('id')).order_by('-c'))
@@ -1294,10 +1331,103 @@ def estadisticas_data(request):
     rechazadas = qs.filter(estado='RECHAZADO').count()
     pendientes = qs.filter(estado='PENDIENTE').count()
 
+    # Si no hay solicitudes o solo una, generar PDF
+    if total <= 1:
+        try:
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=90, bottomMargin=30)
+            styles = getSampleStyleSheet()
+            story = []
+            doc.report_title = 'Estadísticas de Solicitudes'
+            doc.generated_at = datetime.datetime.now().strftime('%d-%m-%Y %I:%M:%S %p').replace('AM','a.m.').replace('PM','p.m.')
+
+            # Encabezado
+            fullname = ''
+            cedula_val = ''
+            try:
+                if trabajador_id:
+                    t = Trabajador.objects.select_related('user').filter(id=trabajador_id).first()
+                elif q:
+                    t = Trabajador.objects.select_related('user').filter(cedula__icontains=q).first()
+                else:
+                    t = None
+                if t:
+                    fullname = t.user.get_full_name()
+                    cedula_val = t.cedula
+            except Exception:
+                t = None
+
+            header_style = styles['Heading4']
+            header_style.spaceAfter = 6
+            if fullname:
+                story.append(Paragraph(f'Reporte del trabajador: {fullname} — Cédula: {cedula_val}', header_style))
+            else:
+                # formatear rango si existe
+                def _f(d):
+                    try:
+                        return datetime.datetime.strptime(d, '%Y-%m-%d').strftime('%d-%m-%Y')
+                    except Exception:
+                        return d or ''
+                range_text = ''
+                if fecha_inicio or fecha_fin:
+                    range_text = f' Rango: {_f(fecha_inicio)} - {_f(fecha_fin)}'
+                story.append(Paragraph(f'Reporte de solicitudes{range_text}', header_style))
+
+            story.append(Spacer(1,12))
+            # Tabla de detalle (incluye nombres/apellidos si hay trabajador relacionado)
+            from reportlab.lib.styles import ParagraphStyle
+            cell_style = ParagraphStyle('detail_cell', parent=styles['Normal'], fontSize=9, leading=11)
+            header_cell = ParagraphStyle('detail_header', parent=styles['Normal'], fontSize=10, leading=12, spaceAfter=4)
+
+            detail_data = [[Paragraph('Fecha', header_cell), Paragraph('Nombres', header_cell), Paragraph('Apellidos', header_cell), Paragraph('Cédula', header_cell), Paragraph('Tipo', header_cell), Paragraph('Estatus', header_cell), Paragraph('Motivo', header_cell)]]
+            for s in qs.order_by('fecha_creacion'):
+                fecha_txt = s.fecha_creacion.strftime('%d-%m-%Y %I:%M:%S %p')
+                trab = getattr(s, 'trabajador', None)
+                nombres = trab.user.first_name if trab and getattr(trab, 'user', None) else ''
+                apellidos = trab.user.last_name if trab and getattr(trab, 'user', None) else ''
+                ced = trab.cedula if trab else ''
+                tipo_label = s.get_tipo_display() if hasattr(s, 'get_tipo_display') else s.tipo
+                motivo_txt = str(s.motivo) if s.motivo else ''
+                detail_data.append([Paragraph(fecha_txt, cell_style), Paragraph(nombres, cell_style), Paragraph(apellidos, cell_style), Paragraph(ced, cell_style), Paragraph(tipo_label, cell_style), Paragraph(s.estado or '', cell_style), Paragraph(motivo_txt, cell_style)])
+
+            # calcular anchos y construir tabla de estadisticas
+            try:
+                avail_w = doc.width
+            except Exception:
+                from reportlab.lib.pagesizes import letter as _letter
+                avail_w = _letter[0] - doc.leftMargin - doc.rightMargin
+            cols = [100, 100, 100, 70, 60, 90, max(avail_w - (100+100+100+70+60+90), 120)]
+            detail_table = Table(detail_data, colWidths=cols, repeatRows=1)
+            detail_table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('GRID', (0,0), (-1,-1), 0.25, colors.grey),
+                ('LEFTPADDING', (0,0), (-1,-1), 6),
+                ('RIGHTPADDING', (0,0), (-1,-1), 6),
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ]))
+            story.append(detail_table)
+
+            doc.build(story, onFirstPage=agregar_numeracion_paginas, onLaterPages=agregar_numeracion_paginas)
+            buffer.seek(0)
+            timestamp = datetime.datetime.now().strftime('%Y%m%d_%I%M%S')
+            response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+            response['Content-Disposition'] = f'attachment; filename=estadisticas_{timestamp}.pdf'
+            return response
+        except Exception:
+            logger.exception('PDF: fallo generando PDF simplificado para <=1 solicitud')
+
+    # Log detalles de la consulta y conteos para depuración
+    try:
+        logger.info(f"PDF: queryset SQL: {str(qs.query) if hasattr(qs, 'query') else 'n/a'}")
+    except Exception:
+        logger.exception('PDF: fallo obteniendo SQL del queryset')
+    logger.info(f'PDF: counts -> total={total}, aprobadas={aprobadas}, rechazadas={rechazadas}, pendientes={pendientes}')
+
     labels = ['Total', 'Aprobadas', 'Rechazadas', 'Pendientes']
     values = [total, aprobadas, rechazadas, pendientes]
 
-    # También devolver desglose por ubicación administrativa (top 10) para mostrar segundo gráfico en la UI
+    # También devolver desglose por ubicación administrativa
     loc_counts = list(qs.values('trabajador__departamento').annotate(c=Count('id')).order_by('-c'))
     loc_labels = [(d['trabajador__departamento'] or 'Sin Ubicación') for d in loc_counts[:10]]
     loc_values = [d['c'] for d in loc_counts[:10]]
@@ -1332,7 +1462,7 @@ def buscar_trabajadores(request):
 @user_passes_test(es_gestion_humana)
 @capture_exceptions_log_to_file
 def exportar_estadisticas_pdf(request):
-    """Exportar estadísticas a PDF (incrusta imagen del gráfico)."""
+    """Exportar estadísticas a PDF (con incrustacion de imagen del gráfico)."""
     q = request.GET.get('q', '').strip()
     trabajador_id = request.GET.get('trabajador_id')
     fecha_inicio = request.GET.get('fecha_inicio')
@@ -1356,7 +1486,17 @@ def exportar_estadisticas_pdf(request):
     # Log applied filters for debugging
     logger.info(f"PDF: export filters -> trabajador_id={trabajador_id}, q='{q}', fecha_inicio={fecha_inicio}, fecha_fin={fecha_fin}, ubicacion='{ubicacion}', chart_type={chart_type}")
 
-    # If the client POSTed the form (submitPdf), prefer POSTed filter params
+    # helper: formatea una fecha recibida como 'YYYY-MM-DD' a 'DD-MM-YYYY' para mostrar en PDF
+    def format_input_date(dstr):
+        if not dstr:
+            return ''
+        try:
+            dt = datetime.datetime.strptime(dstr, '%Y-%m-%d')
+            return dt.strftime('%d-%m-%Y')
+        except Exception:
+            return dstr
+
+    # Si el cliente envió el formulario mediante POST (submitPdf), prefiera los parámetros de filtro enviados mediante POST.
     if request.method == 'POST':
         src = request.POST
         try:
@@ -1370,7 +1510,7 @@ def exportar_estadisticas_pdf(request):
         chart_type = src.get('chart_type', chart_type)
 
     qs = Solicitud.objects.select_related('trabajador').all()
-    # Prefer explicit trabajador_id (selection via search). Fallback to cedula query.
+    # Preferiblemente trabajador_id explícito (selección mediante búsqueda). En caso contrario, se utilizará la consulta de cédula.
     if trabajador_id:
         try:
             qs = qs.filter(trabajador__id=int(trabajador_id))
@@ -1399,7 +1539,7 @@ def exportar_estadisticas_pdf(request):
     rechazadas = qs.filter(estado='RECHAZADO').count()
     pendientes = qs.filter(estado='PENDIENTE').count()
 
-    # If the filter targets a specific trabajador but there are no solicitudes, return a short PDF with a friendly message
+    # Si el filtro apunta a un trabajador específico pero no hay solicitudes, devuelva un PDF breve con un mensaje.
     if (q or trabajador_id) and total == 0:
         try:
             buffer = BytesIO()
@@ -1475,12 +1615,19 @@ def exportar_estadisticas_pdf(request):
 
         # Información para títulos
         fullname = ''
-        if q and qs.exists():
-            trabajador = qs.first().trabajador
-            fullname = trabajador.user.get_full_name() if trabajador else ''
+        # Preferir el objeto trabajador resuelto anteriormente para el título
+        if trabajador_obj:
+            try:
+                fullname = trabajador_obj.user.get_full_name()
+            except Exception:
+                fullname = ''
+        else:
+            if q and qs.exists():
+                trabajador = qs.first().trabajador
+                fullname = trabajador.user.get_full_name() if trabajador else ''
         range_text = ''
         if fecha_inicio or fecha_fin:
-            range_text = f"{fecha_inicio or ''} - {fecha_fin or ''}"
+            range_text = f"{format_input_date(fecha_inicio) or ''} - {format_input_date(fecha_fin) or ''}"
 
         # Si hay filtros (por trabajador o fechas/ubicación) mostrar serie temporal si hay fechas, sino summary
         dates_qs = qs.dates('fecha_creacion', 'day') if qs.exists() else []
@@ -1633,6 +1780,10 @@ def exportar_estadisticas_pdf(request):
     # If matplotlib image generation fails, let exception propagate for debugging
 
     # Crear PDF
+    try:
+        logger.info(f'PDF: image sources -> imgdata_requests_present={bool(imgdata_requests)}, imgdata_locations_present={bool(imgdata_locations)}')
+    except Exception:
+        logger.exception('PDF: error logging image source info')
     buffer = BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter, leftMargin=30, rightMargin=30, topMargin=90, bottomMargin=30)
     styles = getSampleStyleSheet()
@@ -1775,24 +1926,31 @@ def exportar_estadisticas_pdf(request):
     table = Table(data, colWidths=[200,100])
     story.append(table)
 
-    # Si filtrado por trabajador, añadir encabezado con nombre y rango y detalle de solicitudes (fecha, tipo, estatus)
-    if q or trabajador_id:
-        # intentar obtener información del trabajador
+    # Si hay filtro por trabajador, ubicación o por rango de fechas, añadir encabezado y detalle de solicitudes
+    if q or trabajador_id or fecha_inicio or fecha_fin or ubicacion:
+        # intentar obtener información del trabajador (usar el objeto resuelto antes si está disponible)
+        # NO asignar el primer trabajador del queryset si no se filtró por trabajador explícitamente
         trabajador = None
-        if qs.exists():
-            trabajador = qs.first().trabajador
+        if 'trabajador_obj' in locals() and trabajador_obj:
+            trabajador = trabajador_obj
         fullname = trabajador.user.get_full_name() if trabajador else ''
         range_text = ''
         if fecha_inicio or fecha_fin:
-            range_text = f'{fecha_inicio or ""} - {fecha_fin or ""}'
-        # Agregar párrafo con información del trabajador
+            range_text = f'{format_input_date(fecha_inicio) or ""} - {format_input_date(fecha_fin) or ""}'
+        # Agregar párrafo con información del trabajador o con el rango de fechas
         try:
             from reportlab.platypus import Paragraph, TableStyle
-            # Encabezado sin la etiqueta 'Rango' y con número de cédula
-            cedula_val = trabajador.cedula if trabajador else ''
             header_style = getSampleStyleSheet()['Heading4']
             header_style.spaceAfter = 6
-            detail_header = Paragraph(f'Reporte del trabajador: {fullname} — Cédula: {cedula_val}', header_style)
+            if trabajador:
+                cedula_val = trabajador.cedula if trabajador else ''
+                detail_header = Paragraph(f'Reporte del trabajador: {fullname} — Cédula: {cedula_val}', header_style)
+            else:
+                # No hay trabajador específico: mostrar rango y total
+                range_text = ''
+                if fecha_inicio or fecha_fin:
+                    range_text = f' Rango: {format_input_date(fecha_inicio) or ""} - {format_input_date(fecha_fin) or ""}'
+                detail_header = Paragraph(f'Reporte de solicitudes{(" - " + fullname) if fullname else ""}{range_text}', header_style)
             story.append(detail_header)
         except Exception:
             pass
@@ -1803,10 +1961,10 @@ def exportar_estadisticas_pdf(request):
         cell_style = ParagraphStyle('detail_cell', parent=styles['Normal'], fontSize=8, leading=10)
         header_style = ParagraphStyle('detail_header', parent=styles['Normal'], fontSize=9, leading=11, spaceAfter=4)
 
-        # Si el filtro es solo por fechas (sin trabajador/cedula) incluir columnas del trabajador
-        include_worker_cols = False
-        if (fecha_inicio or fecha_fin) and not q and not trabajador_id:
-            include_worker_cols = True
+        # Incluir columnas de trabajador (nombres/apellidos/cedula) cuando el reporte
+        # se filtra por cédula (`q`), por trabajador seleccionado (`trabajador_id`),
+        # por ubicación (`ubicacion`) o cuando se usa un rango de fechas.
+        include_worker_cols = bool(q or trabajador_id or ubicacion or fecha_inicio or fecha_fin)
 
         if include_worker_cols:
             detail_data = [[
@@ -1835,20 +1993,33 @@ def exportar_estadisticas_pdf(request):
                     Paragraph(s.estado or '', cell_style),
                     Paragraph(motivo_txt, cell_style),
                 ])
-            # calcular anchos de columna dinámicamente según ancho disponible
+            # calcular anchos de columna dinámicamente según ancho disponible y escalar si es necesario
             try:
                 avail_w = doc.width
             except Exception:
                 from reportlab.lib.pagesizes import letter as _letter
                 avail_w = _letter[0] - doc.leftMargin - doc.rightMargin
-            col0 = 100  # fecha
-            col1 = 110  # nombres
-            col2 = 110  # apellidos
-            col3 = 80   # cedula
-            col4 = 60   # tipo
-            col5 = 60   # estatus
-            col6 = max(avail_w - (col0 + col1 + col2 + col3 + col4 + col5), 120)
-            detail_table = Table(detail_data, colWidths=[col0, col1, col2, col3, col4, col5, col6], repeatRows=1)
+            # anchuras preferidas (pts) — aumentar ancho del campo 'Estatus' (índice 5) para evitar recortes
+            prefs = [100, 110, 110, 80, 60, 90]
+            min_widths = [70, 60, 60, 50, 50, 70]
+            fixed_sum = sum(prefs)
+            # ancho disponible para la última columna (motivo)
+            remaining = max(avail_w - fixed_sum, 120)
+            cols = prefs + [remaining]
+            # si la suma excede el ancho disponible, escalar proporcionalmente pero respetando mínimos
+            total_cols = sum(cols)
+            if total_cols > avail_w:
+                scale = avail_w / total_cols
+                scaled = []
+                for i, w in enumerate(cols[:-1]):
+                    mw = min_widths[i] if i < len(min_widths) else 50
+                    neww = max(int(w * scale), mw)
+                    scaled.append(neww)
+                # última columna gets remaining of avail_w
+                last = max(avail_w - sum(scaled), 80)
+                scaled.append(last)
+                cols = scaled
+            detail_table = Table(detail_data, colWidths=cols, repeatRows=1)
         else:
             detail_data = [[Paragraph('Fecha', header_style), Paragraph('Tipo', header_style), Paragraph('Estatus', header_style), Paragraph('Motivo', header_style)]]
             for s in qs.order_by('fecha_creacion'):
@@ -1861,17 +2032,22 @@ def exportar_estadisticas_pdf(request):
                     Paragraph(s.estado or '', cell_style),
                     Paragraph(motivo_txt, cell_style),
                 ])
-            # calcular anchos de columna dinámicamente según ancho disponible
+            # calcular anchos de columna dinámicamente según ancho disponible y escalar si es necesario
             try:
                 avail_w = doc.width
             except Exception:
                 from reportlab.lib.pagesizes import letter as _letter
                 avail_w = _letter[0] - doc.leftMargin - doc.rightMargin
-            col0 = 120
-            col1 = 80
-            col2 = 80
-            col3 = max(avail_w - (col0 + col1 + col2), 120)
-            detail_table = Table(detail_data, colWidths=[col0, col1, col2, col3], repeatRows=1)
+            prefs = [120, 80, 100]
+            min_widths = [90, 60, 80]
+            last = max(avail_w - sum(prefs), 120)
+            cols = prefs + [last]
+            if sum(cols) > avail_w:
+                scale = avail_w / sum(cols)
+                scaled = [max(int(w * scale), mw) for w, mw in zip(prefs, min_widths)]
+                last = max(avail_w - sum(scaled), 80)
+                cols = scaled + [last]
+            detail_table = Table(detail_data, colWidths=cols, repeatRows=1)
         # Estilos: encabezado gris, grid, paddings, alineación y fondos alternos
         detail_table.setStyle(TableStyle([
             ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),

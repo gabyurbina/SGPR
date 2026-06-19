@@ -29,7 +29,7 @@ body {
     display: flex;
     flex: 1 1 auto;
     gap: 24px;
-    min-height: 0; /* allow children to shrink and enable internal scrolling */
+    min-height: 0; 
 }
 
 .main-content {
@@ -196,14 +196,14 @@ body {
     color: rgba(33,37,41,0.65);
 }
 
-/* Compact small action buttons (Editar / Reset) */
+/* buttons (Editar / Reset) */
 .btn-compact {
     padding: 0.12rem 0.3rem !important;
     font-size: 0.78rem !important;
     line-height: 1 !important;
 }
 
-/* Export buttons slightly larger and centered text */
+/* buttons de exportacion */
 .btn-export {
     padding: 0.45rem 1rem !important;
     font-size: 0.95rem !important;
@@ -213,13 +213,12 @@ body {
     justify-content: center;
 }
 
-/* Ensure icon spacing remains neat inside export buttons */
 .btn-export .fa-solid,
 .btn-export .fa {
     margin-right: 0.5rem;
 }
 
-/* Make dashboard header compact */
+/* header*/
 .page-content > .d-flex.justify-content-between {
     gap: 0.5rem;
 }
@@ -236,7 +235,6 @@ body {
     border-top: 1px solid rgba(15,33,71,0.08);
 }
 
-/* Sidebar toggle behavior */
 .sidebar {
     position: fixed;
     top: 0;
@@ -292,12 +290,11 @@ body {
     transform: translateX(1px);
 }
 
-/* Hide page-body gap when menu is hidden and keep content full width */
 .page-body {
     gap: 0;
 }
 
-/* Remove floating tab because menu is toggled with the header button only */
+
 .menu-tab {
     display: none !important;
 }
@@ -308,7 +305,6 @@ body {
     border: none;
 }
 
-/* Wider hover area for a nicer UX */
 .menu-hover-area {
     position: fixed;
     left: 0;
@@ -318,7 +314,6 @@ body {
     z-index: 1040;
 }
 
-/* Show tab when hovering the left edge or the tab itself; small slide-in for elegance */
 .menu-hover-area:hover ~ .menu-tab,
 .menu-tab:hover {
     opacity: 1;
@@ -439,7 +434,7 @@ body {
     border-left: 4px solid var(--accent-cyan);
 }
 
-/* Top Navbar */
+/* Navbar */
 .top-navbar {
     background-color: #ffffff;
     padding: 16px 30px;
@@ -602,7 +597,7 @@ body {
 .auth-card input:focus, .auth-card select:focus, .auth-card textarea:focus { outline: none; border-color: var(--accent-blue); box-shadow: 0 0 0 4px rgba(59,130,246,0.1); }
 .auth-note { color: var(--text-muted); font-size:0.95rem; }
 
-/* Estilos específicos para la pantalla de configuración de administradores (más ancha) */
+/* Estilos específicos para la pantalla de configuración de administradores */
 .admin-config-card {
         /* Match the visual style and spacing of the main table panel */
         background: #ffffff;

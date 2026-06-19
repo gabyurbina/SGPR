@@ -76,7 +76,7 @@
   </div>
 
 {% elif es_admin %}
-  <!-- Usuario admin puro: mostrar solo panel de aprobación -->
+  <!-- Usuario admin mostrar solo panel de aprobación -->
   {% if admin_page and admin_page.paginator.count > 0 %}
     {% include 'dashboard_requests_table.html' with page_obj=admin_page paginator=paginator_admin es_admin=True is_super_admin=is_super_admin admin_worker_user_ids=admin_worker_user_ids %}
   {% else %}
@@ -86,7 +86,7 @@
   {% endif %}
 
 {% else %}
-  <!-- Usuario normal: mostrar solo sus solicitudes -->
+  <!-- Usuario normal mostrar solo sus solicitudes -->
   {% if personal_page and personal_page.paginator.count > 0 %}
     {% include 'dashboard_requests_table.html' with page_obj=personal_page paginator=paginator_personal es_admin=False is_super_admin=is_super_admin admin_worker_user_ids=admin_worker_user_ids %}
   {% else %}

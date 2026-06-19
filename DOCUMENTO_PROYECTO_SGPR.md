@@ -6,7 +6,7 @@
 
 **Responsable del desarrollo:** Gabriela Urbina (análisis, diseño, desarrollo, pruebas e implementación)
 
-**Periodo de Sprint:** 01/04/2026 — 30/06/2026
+**Periodo del proyecto:** 01/04/2026 — 30/06/2026
 
 ---
 
@@ -46,7 +46,6 @@ Incluye:
 
 Aplicación web desarrollada en Python con Django. Frontend con plantillas y Chart.js para gráficos. Exportes PDF intentan capturar el canvas cliente (canvas.toDataURL); si falla (canvas tainted) se genera gráfico en servidor con matplotlib y se ensambla el PDF con ReportLab y Pillow. Campos sensibles (ej. cédula, motivo) se almacenan cifrados usando EncryptedTextField.
 
----
 
 ## 8. Stakeholders (Interesados)
 
@@ -54,8 +53,8 @@ Aplicación web desarrollada en Python con Django. Frontend con plantillas y Cha
 - Recursos Humanos (Francismar Marchan)
 - Trabajadores (usuarios finales)
 - Auditoría interna
-- Equipo de soporte/IT (Ing. Trino Vera)
-- Desarrollo principal (Gabriela Urbina)
+- Equipo de soporte Alquitrana (Ing. Trino Vera)
+- Desarrollo principal (Tsu. Gabriela Urbina)
 
 ## 8.1 Usuarios
 
@@ -63,20 +62,21 @@ Aplicación web desarrollada en Python con Django. Frontend con plantillas y Cha
 - Recursos Humanos (Francismar Marchan): principal actor que gestiona solicitudes, aprobaciones y reportes.
 - Trabajadores (usuarios finales): generan solicitudes de permisos y consultan su historial.
 - Auditoría interna: revisa registros y asegura cumplimiento normativo.
-- Equipo de soporte/IT (Ing. Trino Vera): mantiene la infraestructura, despliegues y backups.
+- Equipo de soporte Alquitrana (Ing. Trino Vera): realiza acompañamiento como parte del equipo tecnológico de la Fundación.
+
 
 ## 8.2 Roles de los Interesados (Scrum)
 
-- Product Owner: Recursos Humanos (Francismar Marchan). Representa la voz del cliente, prioriza el backlog del producto y valida el valor entregado.
-- Scrum Master / Facilitador: Administrador del sistema (Lic Marbella Canelón). Facilita el proceso Scrum, elimina impedimentos y asegura que el equipo siga buenas prácticas.
-- Development Team: Gabriela Urbina (desarrolladora principal), Equipo de soporte/IT (Ing. Trino Vera) y el equipo técnico. Construyen, despliegan y mantienen el producto, asegurando calidad y entrega continua.
-- Stakeholders clave: Trabajadores (usuarios finales) y Auditoría interna. Proveen retroalimentación, validan requisitos y evalúan el cumplimiento de necesidades.
+- Product Owner: Administrador del sistema (Lic Marbella Canelón). Es el propietario del producto, define prioridades, valida requisitos y asegura que el desarrollo aporte valor al negocio.
+- Scrum Master / Scrum Developer: Gabriela Urbina (desarrolladora principal). Facilita el proceso Scrum, elimina impedimentos, colabora en el desarrollo y entrega funcionalidad de acuerdo con los criterios aceptados.
+- Development Team: Gabriela Urbina (desarrolladora principal). Construye, despliega y mantiene el producto, asegurando calidad, seguridad y continuidad.
+- Stakeholders clave: Recursos Humanos (Francismar Marchan), Trabajadores (usuarios finales) y Auditoría interna. Proveen retroalimentación, validan requisitos y evalúan el cumplimiento de necesidades.
 
 ## 8.2.1 Medios de comunicación y relaciones de la desarrolladora principal
 
-- Gabriela Urbina mantiene comunicación directa con Recursos Humanos para validar requisitos funcionales, priorizar solicitudes y ajustar reportes.
-- Se relaciona con el Administrador del sistema para coordinar accesos, permisos, y requerimientos de infraestructura y seguridad.
-- Trabaja con el Equipo de soporte/IT para desplegar el sistema, gestionar backups y resolver incidencias técnicas.
+- Gabriela Urbina mantiene comunicación directa con el Product Owner (Lic Marbella Canelón) para alinear prioridades, entregar funcionalidades y resolver dudas de negocio.
+- Se relaciona con Recursos Humanos para validar requisitos funcionales, revisar reportes y ajustar el flujo de solicitudes.
+- Recibe acompañamiento del Equipo de soporte Alquitrana para consultas de despliegue, backups y resolución de incidencias técnicas.
 - Colabora con la Auditoría interna para definir registros de trazabilidad, criterios de auditoría y protección de datos sensibles.
 - También recibe retroalimentación indirecta de los Trabajadores (usuarios finales) a través de Recursos Humanos y pruebas de usuario, para mejorar la usabilidad y el flujo de solicitudes.
 
@@ -102,10 +102,10 @@ Aplicación web desarrollada en Python con Django. Frontend con plantillas y Cha
 - Interés en la integridad y confidencialidad de los datos.
 - Interés en demostrar cumplimiento normativo.
 
-### Equipo de soporte/IT
-- Interés en despliegues consistentes y documentación clara.
-- Interés en detectar y resolver incidentes rápido.
-- Interés en mantener el rendimiento y disponibilidad del sistema.
+### Equipo de soporte Alquitrana
+- Interés en acompañar el despliegue y dar soporte consultivo.
+- Interés en disponer de documentación clara y actualizada.
+- Interés en apoyar la continuidad operacional sin asumir la ejecución directa.
 
 ## 8.3 Necesidades, Producto y Valor por Usuario
 
@@ -129,12 +129,11 @@ Aplicación web desarrollada en Python con Django. Frontend con plantillas y Cha
 - Producto: repositorio de auditoría con búsquedas, exportes y campos sensibles cifrados; controles de acceso restringido.
 - Valor: cumplimiento normativo, capacidad de investigación y evidencia confiable ante auditorías.
 
-### Equipo de soporte/IT
-- Necesidades: despliegues reproducibles, acceso a logs y métricas, procedimientos de recuperación y monitoreo.
-- Producto: documentación de despliegue (Gunicorn+Nginx), scripts de backup, endpoints de salud y logs centralizados.
-- Valor: despliegues más rápidos y seguros, menor tiempo de inactividad y mejor respuesta ante incidentes.
+### Equipo de soporte Alquitrana
+- Necesidades: contar con información clara para acompañar despliegues y respaldos sin asumir la ejecución directa.
+- Producto: documentación de despliegue (Gunicorn+Nginx), guías de backup y recomendaciones de monitoreo.
+- Valor: acompañamiento más efectivo, menos riesgos operativos y respaldo con conocimientos técnicos.
 
----
 
 ## 9. Historias de usuario / Casos de uso
 
@@ -147,9 +146,8 @@ Aplicación web desarrollada en Python con Django. Frontend con plantillas y Cha
 
 Para cada HU se documenta: actor, precondición, flujo principal, excepciones, postcondición.
 
----
 
-## 10. Requerimientos funcionales (selección principal)
+## 10. Requerimientos funcionales
 
 - RF1: CRUD para Trabajadores.
 - RF2: CRUD para Solicitudes con validación de fechas y adjuntos.
@@ -167,7 +165,6 @@ Para cada HU se documenta: actor, precondición, flujo principal, excepciones, p
 - RNF4: Mantenibilidad: código documentado y pruebas básicas.
 - RNF5: Portabilidad: soporte PostgreSQL/SQLite.
 
----
 
 ## 11.1 Requisitos de Alto Nivel del Proyecto
 
@@ -202,7 +199,7 @@ Para cada HU se documenta: actor, precondición, flujo principal, excepciones, p
 
 ## 11.5 Supuestos
 
-- Se asume que el entorno de desarrollo y producción dispone de Python 3.11+ y las dependencias definidas en `requirements.txt`.
+- Se asume que el entorno de desarrollo y producción dispone de Python 3.11+ y las dependencias definidas en requirements.txt.
 - Se asume que el servidor de producción contará con Gunicorn y Nginx instalados y accesibles para configuración.
 - Se asume que los usuarios tendrán credenciales válidas en Django y roles definidos para control de acceso.
 - Se asume que el volumen de datos será moderado, permitiendo tiempos de respuesta aceptables en operaciones básicas.
@@ -221,57 +218,347 @@ Para cada HU se documenta: actor, precondición, flujo principal, excepciones, p
 
 ---
 
-## 12. Backlog del Producto (epicas y user stories principales)
+## 12. Backlog del Producto
 
-- Épica: Gestión de Trabajadores
-  - US-101: Implementar modelo Trabajador y enlace con User
-  - US-102: Formulario y listados
-- Épica: Solicitudes
-  - US-201: Crear Solicitud, validaciones, adjuntos
-  - US-202: Calculo de días y reglas de feriados
-- Épica: Reportes y Estadísticas
-  - US-301: Chart.js en UI
-  - US-302: Export PDF (cliente+servidor)
-  - US-303: Export XLSX
-- Épica: Auditoría
-  - US-401: Registrar acciones con detalles cifrados
+### Épica: Gestión de Trabajadores
+Objetivo: registrar y administrar la información del personal, vinculándola al sistema Django para controlar permisos, roles y reportes.
+
+- US-101: Registrar trabajador
+  - Como administrador del sistema, deseo registrar un trabajador con datos personales y usuario asociado, para disponer de una base de personal actualizada.
+  - Criterios de aceptación:
+    1. El formulario solicita nombre, cédula, cargo, teléfono, correo y usuario Django.
+    2. La cédula es única y su formato es validado.
+    3. Al guardar, el trabajador queda disponible en el listado.
+    4. Se muestra mensaje de éxito y no se permite duplicar cédulas.
+  - Prioridad: Alta
+  - Estimación: 5d
+  - Dependencias: Ninguna
+  - Sprint: 1
+  - Estado: Por hacer
+  - Comentarios: Se debe asegurar el vínculo correcto con el modelo User.
+
+- US-102: Editar datos de trabajador
+  - Como administrador del sistema, deseo editar la información de un trabajador existente, para corregir datos o actualizar su cargo.
+  - Criterios de aceptación:
+    1. El administrador puede cambiar nombre, cargo, teléfono y correo.
+    2. El formulario conserva la cédula inmutable si ya existe.
+    3. Los cambios se reflejan inmediatamente en el listado.
+  - Prioridad: Alta
+  - Estimación: 3d
+  - Dependencias: US-101
+  - Sprint: 1
+  - Estado: Por hacer
+  - Comentarios: Incluir validaciones mínimas de datos.
+
+- US-103: Asociar trabajador a usuario Django
+  - Como administrador del sistema, deseo vincular un trabajador con un usuario Django, para controlar acceso a solicitudes y perfiles.
+  - Criterios de aceptación:
+    1. Se puede asociar un trabajador a un usuario existente.
+    2. No se permite asignar un usuario a más de un trabajador.
+    3. El trabajador muestra el nombre de usuario asociado.
+  - Prioridad: Media
+  - Estimación: 2d
+  - Dependencias: US-101
+  - Sprint: 2
+  - Estado: Por hacer
+  - Comentarios: Usar relaciones OneToOne o ForeignKey según el modelo actual.
+
+- US-104: Listar y buscar trabajadores
+  - Como administrador del sistema, deseo ver un listado filtrable de trabajadores, para encontrar rápidamente registros por nombre, cédula o cargo.
+  - Criterios de aceptación:
+    1. El listado muestra nombre, cédula, cargo, estado y usuario asociado.
+    2. Hay búsqueda por nombre, cédula y cargo.
+    3. El listado es paginado si hay más de 10 registros.
+  - Prioridad: Media
+  - Estimación: 3d
+  - Dependencias: US-101
+  - Sprint: 2
+  - Estado: Por hacer
+  - Comentarios: Añadir opción de exportar listado básico en el futuro.
+
+### Épica: Solicitudes
+Objetivo: permitir crear, validar, gestionar y auditar solicitudes de permiso o reposo con cálculos automáticos y adjuntos.
+
+- US-201: Crear solicitud de permiso/repo
+  - Como trabajador, deseo crear una solicitud con fechas, tipo, motivo y adjunto, para tramitar mi permiso en la Fundación.
+  - Criterios de aceptación:
+    1. El formulario guarda fecha de inicio, fin, tipo, motivo y archivo adjunto.
+    2. Se valida que fecha de inicio ≤ fecha de fin.
+    3. El adjunto acepta PDF/JPG/PNG y no excede el límite configurado.
+  - Prioridad: Alta
+  - Estimación: 3d
+  - Dependencias: US-101
+  - Sprint: 2
+  - Estado: Por hacer
+  - Comentarios: El adjunto debe guardarse en `MEDIA_ROOT` con nombre seguro.
+
+- US-202: Validar fechas y calcular días
+  - Como trabajador, deseo que el sistema calcule días_continuos y dias_laborables automáticamente, para saber el alcance real de mi permiso.
+  - Criterios de aceptación:
+    1. El sistema calcula días_continuos como diferencia inclusive.
+    2. El sistema excluye sábados, domingos y feriados para dias_laborables.
+    3. El cálculo se actualiza al crear o editar la solicitud.
+  - Prioridad: Alta
+  - Estimación: 3d
+  - Dependencias: US-201
+  - Sprint: 2
+  - Estado: Por hacer
+  - Comentarios: Incluir lista básica de feriados dentro del alcance del proyecto.
+
+- US-203: Adjuntar archivos a la solicitud
+  - Como trabajador, deseo adjuntar comprobantes o documentos al crear mi solicitud, para respaldar mi motivo.
+  - Criterios de aceptación:
+    1. El formulario permite cargar un archivo por solicitud.
+    2. Solo se aceptan extensiones permitidas y tamaño máximo configurado.
+    3. El adjunto puede descargarse desde la vista de detalle.
+  - Prioridad: Alta
+  - Estimación: 3d
+  - Dependencias: US-201
+  - Sprint: 3
+  - Estado: Por hacer
+  - Comentarios: Validar también el tipo MIME en el backend.
+
+- US-204: Ver detalle y estado de solicitud
+  - Como trabajador, deseo ver el detalle de mi solicitud, su estado y observaciones, para saber el resultado del trámite.
+  - Criterios de aceptación:
+    1. La vista muestra todos los campos, adjunto y estado de la solicitud.
+    2. Incluye fecha de creación y última modificación.
+    3. El estado puede ser Pendiente, Aprobado o Rechazado.
+  - Prioridad: Media
+  - Estimación: 3d
+  - Dependencias: US-201
+  - Sprint: 3
+  - Estado: Por hacer
+  - Comentarios: El detalle debe ser accesible solo al trabajador y al área de RRHH.
+
+- US-205: Aprobar o rechazar solicitud con observaciones
+  - Como Recursos Humanos, deseo aprobar o rechazar solicitudes con comentarios, para comunicar la decisión y dejar evidencia.
+  - Criterios de aceptación:
+    1. Recursos Humanos puede cambiar el estado de una solicitud.
+    2. Debe agregar una observación al aprobar o rechazar.
+    3. La acción queda registrada en el historial de auditoría.
+  - Prioridad: Alta
+  - Estimación: 4d
+  - Dependencias: US-204, US-401
+  - Sprint: 4
+  - Estado: Por hacer
+  - Comentarios: Incluir notificación interna si se dispone más adelante.
+
+### Épica: Reportes y Estadísticas
+Objetivo: entregar métricas y reportes visuales que faciliten el análisis de permisos y desempeño.
+
+- US-301: Panel de estadísticas filtrable
+  - Como Recursos Humanos, deseo ver gráficos de solicitudes por tipo, estado y periodo, para tomar decisiones informadas.
+  - Criterios de aceptación:
+    1. El panel muestra gráficos de barras y pastel con datos reales.
+    2. Permite filtrar por rango de fechas, tipo de solicitud y trabajador.
+    3. Los datos se actualizan al cambiar los filtros.
+  - Prioridad: Alta
+  - Estimación: 4d
+  - Dependencias: US-201, US-204
+  - Sprint: 3
+  - Estado: Por hacer
+  - Comentarios: Usar Chart.js en la interfaz.
+
+- US-302: Exportar estadísticas a PDF
+  - Como Recursos Humanos, deseo exportar el panel de estadísticas a PDF, para compartir informes oficiales.
+  - Criterios de aceptación:
+    1. El PDF incluye tablas de resumen e imágenes de los gráficos.
+    2. Si la captura cliente falla, se genera el gráfico en servidor.
+    3. El PDF es descargable desde la interfaz.
+  - Prioridad: Alta
+  - Estimación: 4d
+  - Dependencias: US-301
+  - Sprint: 4
+  - Estado: Por hacer
+  - Comentarios: Incluir fallback con matplotlib y ReportLab.
+
+- US-303: Exportar solicitudes a XLSX
+  - Como Recursos Humanos, deseo exportar un listado de solicitudes a XLSX, para análisis externo y archivo.
+  - Criterios de aceptación:
+    1. El archivo XLSX incluye filas con datos clave de cada solicitud.
+    2. Se pueden aplicar los mismos filtros del panel antes de exportar.
+    3. El archivo se descarga correctamente.
+  - Prioridad: Media
+  - Estimación: 3d
+  - Dependencias: US-301
+  - Sprint: 4
+  - Estado: Por hacer
+  - Comentarios: Uso de pandas o openpyxl según disponibilidad.
+
+### Épica: Auditoría y Seguridad
+Objetivo: garantizar trazabilidad, confidencialidad e integridad de acciones críticas.
+
+- US-401: Registrar acciones críticas en auditoría
+  - Como auditor interno, deseo una bitácora de aprobaciones, rechazos, ediciones y eliminaciones, para contar con evidencia confiable.
+  - Criterios de aceptación:
+    1. Cada evento crítico se guarda con usuario, fecha, tabla y acción.
+    2. Los detalles sensibles se cifran en la base de datos.
+    3. El registro se puede consultar por usuarios autorizados.
+  - Prioridad: Alta
+  - Estimación: 3d
+  - Dependencias: US-201, US-205
+  - Sprint: 5
+  - Estado: Por hacer
+  - Comentarios: Aprovechar modelo de Auditoría ya planificado.
+
+- US-402: Buscar auditoría por usuario/tabla/fecha
+  - Como auditor interno, deseo filtrar registros de auditoría por usuario, tabla y fecha, para investigar incidentes eficientemente.
+  - Criterios de aceptación:
+    1. La interfaz permite ingresar criterios de búsqueda.
+    2. Los resultados muestran registro, acción, fecha y detalle.
+    3. Solo usuarios autorizados acceden al módulo.
+  - Prioridad: Media
+  - Estimación: 2d
+  - Dependencias: US-401
+  - Sprint: 5
+  - Estado: Por hacer
+  - Comentarios: Definir permisos concretos de acceso.
+
+- US-403: Cifrar campos sensibles en base de datos
+  - Como auditor interno, deseo que datos sensibles como cédula y motivo queden cifrados, para proteger la información personal.
+  - Criterios de aceptación:
+    1. Los campos sensibles se almacenan usando EncryptedTextField o equivalente.
+    2. Las vistas autorizadas desencriptan los datos correctamente.
+    3. Las claves de cifrado se gestionan con variables de entorno.
+  - Prioridad: Alta
+  - Estimación: 3d
+  - Dependencias: US-201, US-401
+  - Sprint: 5
+  - Estado: Por hacer
+  - Comentarios: Revisar configuración de FERNET_KEY y entornos.
+
+### Épica: Infraestructura y Operación
+Objetivo: asegurar despliegues, respaldos y documentación para operación estable.
+
+- US-501: Backup y restauración automatizada
+  - Como equipo de soporte, deseo un procedimiento de backup y restauración, para proteger los datos y recuperarlos ante fallos.
+  - Criterios de aceptación:
+    1. Existe script o tarea documentada para backup de base de datos.
+    2. Existe procedimiento de restauración paso a paso.
+    3. El backup incluye archivos adjuntos y base de datos.
+  - Prioridad: Media
+  - Estimación: 3d
+  - Dependencias: US-503
+  - Sprint: 6
+  - Estado: Por hacer
+  - Comentarios: Incluir ops/backup.ps1 y documentación en /docs.
+
+- US-502: Despliegue reproducible Gunicorn + Nginx
+  - Como equipo de soporte, deseo una configuración de despliegue reproducible, para instalar el sistema en producción con seguridad y estabilidad.
+  - Criterios de aceptación:
+    1. La aplicación se puede levantar con Gunicorn.
+    2. Nginx actúa como proxy inverso con configuraciones de seguridad.
+    3. Existe guía breve de despliegue.
+  - Prioridad: Alta
+  - Estimación: 2d
+  - Dependencias: US-503
+  - Sprint: 6
+  - Estado: Por hacer
+  - Comentarios: Utilizar ops/nginx_sgpr.conf y sgpr.service.
+
+- US-503: Documentar manuales de usuario e implementación
+  - Como equipo de soporte, deseo documentación clara de uso, instalación y respaldo, para entregar el sistema con guía completa.
+  - Criterios de aceptación:
+    1. Existen manuales de usuario y de implementación.
+    2. La documentación incluye pasos de instalación, backups y restauración.
+    3. El contenido está disponible en /docs.
+  - Prioridad: Alta
+  - Estimación: 3d
+  - Dependencias: Ninguna
+  - Sprint: 6
+  - Estado: Por hacer
+  - Comentarios: Actualizar manuales existentes /docs/manual_usuario.md y /docs/manual_implementacion.md.
 
 ---
 
 ## 13. Sprint Backlog (Periodo: 01/04/2026 → 30/06/2026)
 
-Este periodo abarca 3 meses. Se propone dividir en sprints de 2 semanas. Resumen:
+Este periodo se organiza en seis sprints de dos semanas y una semana de cierre para entrega.
 
-- Sprint 1 (01/04 — 14/04): Modelos y configuración base
-  - Implementar modelos: Trabajador, Solicitud, Auditoria
-  - Configuración Django y entorno virtual básico
-  - Pruebas unitarias de modelos
+### Sprint 1 (01/04 — 14/04)
+Objetivo: definir la base de datos, configurar el entorno y entregar el CRUD inicial de trabajadores.
 
-- Sprint 2 (15/04 — 28/04): Formularios y CRUD
-  - Formulario Solicitud y validaciones
-  - Adjuntos y validación de extensiones
-  - Encriptación de campos
+- Historias y tareas:
+  - US-101: Registrar trabajador (5d) — Estado: Por hacer
+  - US-102: Editar datos de trabajador (3d) — Estado: Por hacer
+  - Tarea: Configurar entorno virtual, dependencias y `requirements.txt` (1d)
+  - Tarea: Crear migraciones y ejecutar pruebas unitarias de modelos (1d)
 
-- Sprint 3 (29/04 — 12/05): Estadísticas UI
-  - Integrar Chart.js, filtros, paleta de colores
-  - Ajustes visuales y pruebas manuales
+- Dependencias: ninguna
+- Comentarios: foco en estabilidad de los modelos de `Trabajador`, `Solicitud` y `Auditoría`.
 
-- Sprint 4 (13/05 — 26/05): Exportes PDF
-  - Captura canvas client-side y envío base64
-  - Implementar fallback server-side (matplotlib+ReportLab)
-  - Pruebas de exportes y ajustes de tamaño/espaciado
+### Sprint 2 (15/04 — 28/04)
+Objetivo: construir el flujo de solicitudes, validar fechas y vincular trabajadores a usuarios.
 
-- Sprint 5 (27/05 — 09/06): Auditoría y seguridad
-  - Registro de auditoría en acciones críticas
-  - Revisar cifrado y gestión de claves (env vars)
+- Historias y tareas:
+  - US-201: Crear solicitud de permiso/repo (3d) — Estado: Por hacer
+  - US-202: Validar fechas y calcular días (3d) — Estado: Por hacer
+  - US-103: Asociar trabajador a usuario Django (2d) — Estado: Por hacer
+  - Tarea: Integración inicial de trabajador y solicitud (2d)
 
-- Sprint 6 (10/06 — 23/06): Deploy y pruebas finales
-  - Ajustes de despliegue en servidor, scripts backup
-  - Pruebas de integración y corrección de bugs
+- Dependencias: US-101
+- Comentarios: asegurar que los cálculos de días sean correctos antes de avanzar en UI.
 
-- Buffer/Entrega (24/06 — 30/06): Documentación final, manuales, retrospectiva y entrega al cliente.
+### Sprint 3 (29/04 — 12/05)
+Objetivo: implementar la subida de adjuntos, el detalle de solicitud y el panel de estadísticas filtrable.
 
-(Tareas detalladas y estimaciones se registran en el backlog del proyecto).
+- Historias y tareas:
+  - US-203: Adjuntar archivos a la solicitud (3d) — Estado: Por hacer
+  - US-204: Ver detalle y estado de solicitud (3d) — Estado: Por hacer
+  - US-301: Panel de estadísticas filtrable (4d) — Estado: Por hacer
+  - Tarea: Ajustes visuales y responsive en Chart.js (1d)
+
+- Dependencias: US-201, US-204
+- Comentarios: probar la experiencia de usuario con datos reales de ejemplo.
+
+### Sprint 4 (13/05 — 26/05)
+Objetivo: entregar exportes de informes y garantizar la generación de PDF con fallback servidor.
+
+- Historias y tareas:
+  - US-302: Exportar estadísticas a PDF (4d) — Estado: Por hacer
+  - US-303: Exportar solicitudes a XLSX (2d) — Estado: Por hacer
+  - Tarea: Implementar fallback servidor para gráficos PDF (2d)
+  - Tarea: Ajustes de formato y márgenes en exportes (1d)
+
+- Dependencias: US-301
+- Comentarios: validar el tamaño y legibilidad del PDF en papel y pantalla.
+
+### Sprint 5 (27/05 — 09/06)
+Objetivo: habilitar auditoría, seguridad y cifrado de datos sensibles.
+
+- Historias y tareas:
+  - US-401: Registrar acciones críticas en auditoría (3d) — Estado: Por hacer
+  - US-402: Buscar auditoría por usuario/tabla/fecha (2d) — Estado: Por hacer
+  - US-403: Cifrar campos sensibles en base de datos (3d) — Estado: Por hacer
+  - Tarea: Revisar configuración de `FERNET_KEY` y variables de entorno (1d)
+
+- Dependencias: US-201, US-205
+- Comentarios: la seguridad y trazabilidad son requisitos clave antes del despliegue.
+
+### Sprint 6 (10/06 — 23/06)
+Objetivo: cerrar el proyecto con despliegue reproducible, backups y documentación.
+
+- Historias y tareas:
+  - US-501: Backup y restauración automatizada (3d) — Estado: Por hacer
+  - US-502: Despliegue reproducible Gunicorn + Nginx (2d) — Estado: Por hacer
+  - US-503: Documentar manuales de usuario e implementación (3d) — Estado: Por hacer
+  - Tarea: Pruebas finales de integración y corrección de bugs (2d)
+  - Tarea: Preparar entregables y capacitación breve (1d)
+
+- Dependencias: US-403, US-302
+- Comentarios: priorizar la entrega estable y la documentación clara.
+
+### Semana de cierre y entrega (24/06 — 30/06)
+Objetivo: revisión final, validación con stakeholders y ajustes de entrega.
+
+- Actividades:
+  - Revisión de aceptación con Product Owner y RRHH.
+  - Ajustes menores en PDF, filtros y validaciones.
+  - Corrección de comentarios de auditoría y documentación.
+  - Preparación del paquete final de entrega.
+
+- Comentarios: esta semana actúa como buffer para asegurar la culminación del proyecto el 30/06/2026.
 
 ---
 
@@ -358,7 +645,7 @@ Asegurar autenticación y control de acceso en cada endpoint.
 
 ---
 
-## 21. Desarrollo e implementación de módulos (estado resumido)
+## 21. Desarrollo e implementación de módulos
 
 - Trabajadores: implementado (modelos, vistas, templates)
 - Solicitudes: implementado (validaciones, adjuntos, cálculos)
@@ -394,7 +681,7 @@ Validaciones: fechas coherentes, adjunto extensión permitida, motivo obligatori
 ## 24. Código y archivos fuentes
 
 - Repositorio contiene: `sgpr_alquitrana/` (app Django), `templates/`, `static/`, `erd.puml`.
-- Código documentado en español; no contiene credenciales.
+- Código documentado.
 
 ---
 
@@ -433,7 +720,7 @@ Validaciones: fechas coherentes, adjunto extensión permitida, motivo obligatori
 
 Declaro que este proyecto fue desarrollado bajo SCRUM y que la persona indicada (desarrolladora) ejecutó todas las actividades de análisis, diseño, desarrollo, pruebas e implementación.
 
-**Fecha de generación del documento:** 2026-06-03
+**Fecha de generación del documento:** 30-06-2026
 
 
 ---

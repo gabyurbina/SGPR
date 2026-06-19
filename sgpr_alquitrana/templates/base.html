@@ -20,7 +20,7 @@
     </style>
 </head>
 <body>
-    <!-- Área de hover para el menú lateral; se usa solo en escritorio si se agrega un tab flotante. -->
+    <!-- Área de hover para el menú lateral -->
     <div class="menu-hover-area d-none d-md-block" aria-hidden="true"></div>
 
     <!-- Contenedor principal que incluye header, sidebar y contenido. -->
@@ -29,7 +29,7 @@
             <div class="container px-4 py-2 d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
                 <div>
                     <div class="d-flex align-items-center gap-3 mb-2">
-                        <!-- Logo y botón de hamburguesa para alternar el menú lateral. -->
+                        <!-- Logo y botón de hamburguesa para menú lateral. -->
                         <img src="{% static 'images/logo.png' %}" alt="SGPR" class="header-logo-img" style="width: 140px; height: auto; flex-shrink: 0;">
                         <button id="menu-toggle" class="btn btn-sm btn-light ms-2" title="Mostrar / Ocultar menú">
                           <i class="fa-solid fa-bars"></i>
@@ -116,7 +116,7 @@
                     {% endif %}
 
                     <div class="content-area p-4 p-md-5 bg-white rounded-4 shadow-sm">
-                        <!-- Contenido principal de cada plantilla heredada. -->
+                        <!-- Contenido principal de cada plantilla -->
                         {% block content %}{% endblock %}
                     </div>
                 </div>

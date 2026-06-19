@@ -1,5 +1,5 @@
-"""Modelos de datos para SGPR: Trabajador, Solicitud y Auditoria.
-"""
+"""Modelos de datos para SGPR: Trabajador, Solicitud y Auditoria."""
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
